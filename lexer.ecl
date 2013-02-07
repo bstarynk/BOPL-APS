@@ -38,7 +38,7 @@ scanFile(FileName, Tokens) :-
 scan(FileName, Tokens) :-
   open(FileName, read, IS),
   get(IS, Char),
-  scanTokens(IS, Char, 1, Tokens, NbLines),
+  (scanTokens(IS, Char, 1, Tokens, NbLines);(!,printf(warning_output, "BOPL failed to lex file %s\n",[FileName]),fail)),
   length(Tokens, NbTokens),
   !,
   printf(output,"BOPL lexed file %s of %d lines and %d tokens\n", [FileName, NbLines, NbTokens]),
@@ -126,7 +126,6 @@ equal(61).
 %% -NextLineno is the next line number.
 
 scanToken(IS, C, Lineno, Token, NextC, NextLineno) :-
-  printf(output,"@@scanToken C=%d Lineno=%d\n", [C,Lineno]), flush(output),
 %%% digits are numbers
   ( isDigit(C), !, getInt(IS, C, Num, NextC), Token=tNum{loc:Lineno,num:Num}, NextLineno = Lineno 
 %%% scan letters as keywords or identifiers
@@ -166,6 +165,7 @@ scanToken(IS, C, Lineno, Token, NextC, NextLineno) :-
 %%% two characters := is the assign delimiter
   ; colon(C), !, get(IS, Eq), equal(Eq), Token = tDelim{loc:Lineno,cont:assign},
     get(IS, NextC), NextLineno = Lineno
+  ; !, printf(warning_output, "BOPL lexical error line %d char %c\n", [Lineno, C]), fail
   ).					    
 
 
