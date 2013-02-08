@@ -51,17 +51,17 @@ scan(FileName, Tokens) :-
 %% ECLiPSe tutorial.
 
 %%% tokens with location for delimiters (like period, lparen, ...)
-:- local struct(tDelim(loc,cont)).
+:- export struct(tDelim(loc,cont)).
 %% so code tDelim{cont:C} or tDelim{loc:L,cont:C} or tDelim(L,C)
 
 %%% tokens with location for key words or reserved words
-:- local struct(tKeyw(loc,word)).
+:- export struct(tKeyw(loc,word)).
 
 %%% tokens with location for identifiers
-:- local struct(tId(loc,name)).
+:- export struct(tId(loc,name)).
 
 %%% token with location for numbers
-:- local struct(tNum(loc,num)).
+:- export struct(tNum(loc,num)).
 
 lexAt(tDelim{loc:L},L).
 lexAt(tId{loc:L},L).

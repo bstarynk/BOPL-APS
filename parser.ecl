@@ -70,30 +70,30 @@
 
 %%$% program ::= program(class*, var*, inst)
 
-:- local struct(pProgram(clas,vars,insts,file,start,end)).
+:- export struct(pProgram(clas,vars,insts,file,start,end)).
 
 %%$% class   ::= class(id, cexp, var*, method*)
-:- local struct(pClass(id,cexp,vars,methods,file,start,end)).
+:- export struct(pClass(id,cexp,vars,methods,file,start,end)).
 
 %%$% cexp    ::= cexp(id)
-:- local struct(pCexp(id,file,line)).
+:- export struct(pCexp(id,file,line)).
 
 %%$% var     ::= var(cexp, id)
-:- local struct(pVar(cexp,id,file,line)).
+:- export struct(pVar(cexp,id,file,line)).
 
 %%$% method  ::= method(id, var*, cexp, var*, inst)
-:- local struct(pMethod(id,formals,cexp,locals,inst,file,start,end)).
+:- export struct(pMethod(id,formals,cexp,locals,inst,file,start,end)).
 
 %%$% inst    ::= seq(inst, inst) | assign(id, exp) | writeField(exp, id, exp) |
 %%$%             if(exp, inst, inst) | while(exp, inst) | return(exp) |
 %%$%             writeln(Exp)
-:- local struct(pSeq(lefti,righti,file,start,end)).
-:- local struct(pAssign(id,exp,file,line)).
-:- local struct(pWriteField(obj,id,val,file,line)).
-:- local struct(pIf(exp,ithen,ielse,file,start,end)).
-:- local struct(pWhile(exp,inst,file,start,end)).
-:- local struct(pReturn(exp,file,line)).
-:- local struct(pWriteln(exp,file,line)).
+:- export struct(pSeq(lefti,righti,file,start,end)).
+:- export struct(pAssign(id,exp,file,line)).
+:- export struct(pWriteField(obj,id,val,file,line)).
+:- export struct(pIf(exp,ithen,ielse,file,start,end)).
+:- export struct(pWhile(exp,inst,file,start,end)).
+:- export struct(pReturn(exp,file,line)).
+:- export struct(pWriteln(exp,file,line)).
 
 %$% exp     ::= int(N) | boolean(true) | boolean(false) | not(exp) | nil | self |
 %$%             super | new(cexp) | instanceof(exp, cexp) | id |
@@ -104,29 +104,29 @@
 %%% we only keep the starting line of expressions, they usually sit on
 %%% a single line.
 %$% exp     ::= int(N) | boolean(true) | boolean(false) | not(exp) | nil | self |
-:- local struct(pInt(num,file,line)).
-:- local struct(pBoolean(bool,file,line)).
-:- local struct(pNot(exp,file,line)).
-:- local struct(pNil(file,line)).
-:- local struct(pSelf(file,line)).
+:- export struct(pInt(num,file,line)).
+:- export struct(pBoolean(bool,file,line)).
+:- export struct(pNot(exp,file,line)).
+:- export struct(pNil(file,line)).
+:- export struct(pSelf(file,line)).
 %$%             super | new(cexp) | instanceof(exp, cexp) | id |
-:- local struct(pSuper(file,line)).
-:- local struct(pNew(cexp,file,line)).
-:- local struct(pInstanceOf(exp,cexp,file,line)).
-:- local struct(pId(id,file,line)).
+:- export struct(pSuper(file,line)).
+:- export struct(pNew(cexp,file,line)).
+:- export struct(pInstanceOf(exp,cexp,file,line)).
+:- export struct(pId(id,file,line)).
 %$%             methodcall(exp, id, exp*) | readField(exp, id) |id(Atom) |
-:- local struct(pMethodCall(recv,id,args,file,line)).
-:- local struct(pReadField(obj,id,file,line)).
-:- local struct(pAtom(id,file,line)).
+:- export struct(pMethodCall(recv,id,args,file,line)).
+:- export struct(pReadField(obj,id,file,line)).
+:- export struct(pAtom(id,file,line)).
 %$%             plus(exp, exp) | minus(exp, exp) | times(exp, exp) |
-:- local struct(pPlus(left,right,file,line)).
-:- local struct(pMinus(left,right,file,line)).
-:- local struct(pTimes(left,right,file,line)).
+:- export struct(pPlus(left,right,file,line)).
+:- export struct(pMinus(left,right,file,line)).
+:- export struct(pTimes(left,right,file,line)).
 %$%             equal(exp, exp) | and(exp, exp) | or(exp, exp) | less(exp, exp)
-:- local struct(pEqual(left,right,file,line)).
-:- local struct(pAnd(left,right,file,line)).
-:- local struct(pOr(left,right,file,line)).
-:- local struct(pLess(left,right,file,line)).
+:- export struct(pEqual(left,right,file,line)).
+:- export struct(pAnd(left,right,file,line)).
+:- export struct(pOr(left,right,file,line)).
+:- export struct(pLess(left,right,file,line)).
 
 
 %% predicate atFile to give the file name
