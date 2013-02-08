@@ -222,7 +222,7 @@ parseFile(FileName,AST) :-
 parse(FileName,Tokens,AST) :- 
     parseProgram(FileName,Tokens,AST,[]), !.
 
-%parseToken(+Read, ?Expected)
+% parseToken(+Read, ?Expected)
 parseToken(Read, Expected) :-
   nonvar(Read),
   Read = Expected.
@@ -239,3 +239,33 @@ parseProgram(FileName,[Tprog|TokensAfterProg],
     parseSeq(FileName,TokensAfterLocals,SeqInsts,[])
 .
 
+parseClassList(FileName,Tokens,[Class|RestClasses],TokenAfterClassList)
+:- Tokens = [tKeyw{word:class}|_],
+   parseClass(FileName,Tokens,Class,TokenAfterClass),
+   parseClassList(FileName,TokenAfterClass,RestClasses,TokenAfterClassList)
+.
+
+parseClassList(FileName,Tokens,[],Tokens).
+
+parseClass(FileName,[tKeyw{word:class,loc:StartLine} | RestTokens],
+	   Class,TokensAfterClass)
+:- ( RestTokens = [tId{name:ClId,loc:_}|TokensAfterClassId],
+     parseExtends(FileName,TokensAfterClassId, SuperClass, TokensAfterExtends),
+     TokensAfterExtends = [tKeyw{word:id}|TokensAfterIs],
+     parseVarsList(FileName,TokensAfterIs,VarList,TokensAfterVarList),
+     parseMethodsList(FileName,TokensAfterVarList,MethodsList,TokensAfterMethodsList),
+     TokensAfterMethodsList = [tKeyw{word:end,loc:EndLine}|TokensAfterClass]
+    ) ; ( !,
+	  printf(warning_output,"BOPL failed to parse class at file %s line %d\n",
+		 [FileName,StartLine]),
+	  flush(warning_output),
+	  fail )
+.
+
+parseExtends(FileName,[tKeyw{word:extends}|TokensAfterExtends],SuperClass,RestTokens) 
+:- !, parseClassExp(FileName,TokensAfterExtends,SuperClass,RestTokens).
+
+parseExtends(FileName,Tokens,pClass(id('Object'),nil,[],[],"*builtin*",0,0),
+	     Tokens).
+
+%% incomplete
