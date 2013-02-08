@@ -23,16 +23,16 @@
 %% [Re-]written by Basile Starynkevitch   basile@starynkevitch.net
 %% To be compiled by ECLiPSe-CLP Prolog, see http://eclipseclp.org/
 
+:- module(lexer).
 
 :- use_module(library(pretty_print)).
-:- module(lexer).
 :- export scanFile/2,scan/2,lexWith/2,lexDelim/2,lexKeyw/2,lexId/2,lexNum/2,lexAt/2.
 
 
 %% scanFile(+FileName, -Tokens)
 scanFile(FileName, Tokens) :-
   scan(FileName, Tokens),
-  pretty_print:pretty_print(stdout, Tokens, 80).
+  pretty_print(stdout, Tokens, 80).
 
 
 scan(FileName, Tokens) :-

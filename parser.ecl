@@ -23,10 +23,12 @@
 %% [Re-]written by Basile Starynkevitch   basile@starynkevitch.net
 %% To be compiled by ECLiPSe-CLP Prolog, see http://eclipseclp.org/
 
+:- module(parser).
+
+
 :- use_module(library(pretty_print)).
 :- use_module(lexer).
 
-:- module(parser).
 :- export parseFile/2, parse/3.
 
 %*****************************************************************************
@@ -214,7 +216,7 @@ parseFile(FileName,AST) :-
     scanner:scan(FileName,Tokens),
     parse(FileName,Tokens,AST),
     printf(output,"BOPL parsed file %s\n", [FileName]),
-    pretty_print:pretty_print(stdout, AST, 80).
+    pretty_print(stdout, AST, 80).
 
 % parse(+FileName,+Tokens,-AST)
 parse(FileName,Tokens,AST) :- 
