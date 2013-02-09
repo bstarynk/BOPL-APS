@@ -1,5 +1,5 @@
 %% -*- prolog -*-   %%% to make Emacs happy
-%%%%%%%%%%%%%%%%%%%%%%%%%%% The BOPL lexer
+%%%%%%%%%%%%%%%%%%%%%%%%%%% The BOPL lexer; file lexer_bopl.ecl
 %%%%% for APS lecture MI030 "Analyse des programmes et sémantique"
 %%%%% course by http://pagesperso-systeme.lip6.fr/Jacques.Malenfant/
 
@@ -23,7 +23,7 @@
 %% [Re-]written by Basile Starynkevitch   basile@starynkevitch.net
 %% To be compiled by ECLiPSe-CLP Prolog, see http://eclipseclp.org/
 
-:- module(lexer).
+:- module(lexer_bopl).
 
 :- use_module(library(pretty_print)).
 :- export scanFile/2,scan/2,lexWith/2,lexDelim/2,lexKeyw/2,lexId/2,lexNum/2,lexAt/2.
@@ -147,7 +147,7 @@ scanToken(IS, C, Lineno, Token, NextC, NextLineno) :-
     ; (hashcomment(C),
        !,
        skipline(IS,C,NextC),
-       (SuccLineno is Lineno + 1, scanToken(IS,Char,SuccLineno,Token,NextC,NextLineno))
+       (SuccLineno is Lineno + 1, scanToken(IS,_Char,SuccLineno,Token,NextC,NextLineno))
       )
 %%% end of file
     ; isEos(C), !, Token = eof, NextC = C, NextLineno = Lineno
@@ -171,7 +171,7 @@ scanToken(IS, C, Lineno, Token, NextC, NextLineno) :-
 
 
 skipline(IS,C,NextC) :- not(endline(C)), !, get(IS,SuccC), skipline(IS,SuccC,NextC).
-skipline(IS,C,NextC) :- isEos(C), NextC = C.
+skipline(_IS,C,NextC) :- isEos(C), NextC = C.
 skipline(IS,C,NextC) :- endline(C), !, get(IS,NextC).
 
 

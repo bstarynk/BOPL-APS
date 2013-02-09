@@ -1,5 +1,5 @@
 %% -*- prolog -*-   %%% to make Emacs happy
-%%%%%%%%%%%%%%%%%%%%%%%%%%% The BOPL parser
+%%%%%%%%%%%%%%%%%%%%%%%%%%% The BOPL parser; file parser_bopl.ecl
 %%%%% for APS lecture MI030 "Analyse des programmes et sémantique"
 %%%%% course by http://pagesperso-systeme.lip6.fr/Jacques.Malenfant/
 
@@ -23,11 +23,11 @@
 %% [Re-]written by Basile Starynkevitch   basile@starynkevitch.net
 %% To be compiled by ECLiPSe-CLP Prolog, see http://eclipseclp.org/
 
-:- module(parser).
+:- module(parser_bopl).
 
 
 :- use_module(library(pretty_print)).
-:- use_module(lexer).
+:- use_module(lexer_bopl).
 
 :- export parseFile/2, parse/3.
 
@@ -182,8 +182,8 @@ atEnd(pSeq{end:EndLine},EndLine).
 atEnd(pIf{end:EndLine},EndLine).
 atEnd(pWhile{end:EndLine},EndLine).
 atEnd([E],EndLine) :- atEnd(E,EndLine).
-atEnd([H|E],EndLine) :- atEnd(E,EndLine).
-atEnd(X,EndLine) :- atLine(E,EndLine).
+atEnd([_|E],EndLine) :- atEnd(E,EndLine).
+atEnd(E,EndLine) :- atLine(E,EndLine).
 
 %% predicate atLine to give the line 
 atLine(pCexp{line:LineNo},LineNo).
@@ -230,7 +230,7 @@ parseToken(Read, Expected) :-
     
      
 parseProgram(FileName,[Tprog|TokensAfterProg], 
-	     pProgram(Clas,Vars,SeqInsts,FileName,StartLine,EndLine), 
+	     pProgram(Class,_Vars,SeqInsts,FileName,StartLine,EndLine), 
 	     [])
 :-
     parseToken(Tprog,tKeyw{loc:StartLine,word:program}),
