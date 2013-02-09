@@ -1,4 +1,3 @@
-%% -*- prolog -*-   %%% to make Emacs happy
 %%%%%%%%%%%%%%%%%%%%%%%%%%% The BOPL parser; file parser_bopl.ecl
 %%%%% for APS lecture MI030 "Analyse des programmes et sémantique"
 %%%%% course by http://pagesperso-systeme.lip6.fr/Jacques.Malenfant/
@@ -32,7 +31,7 @@
 :- export parseFile/2, parse/3.
 
 %*****************************************************************************
-% Concrete grammar
+% Concrete grammar [lowercase are terminals]
 %
 % Program    ::= program ClassList Locals Seq
 % Locals     ::= <epsilon> | let Vars in
@@ -229,6 +228,8 @@ parseToken(Read, Expected) :-
 
     
      
+%%%%%%%%%%%%%%%%
+%!% Program    ::= program ClassList Locals Seq
 parseProgram(FileName,[Tprog|TokensAfterProg], 
 	     pProgram(Class,_Vars,SeqInsts,FileName,StartLine,EndLine), 
 	     [])
@@ -239,6 +240,10 @@ parseProgram(FileName,[Tprog|TokensAfterProg],
     parseSeq(FileName,TokensAfterLocals,SeqInsts,[])
 .
 
+
+%%%%%%%%%%%%%%%%
+%!% ClassList  ::= <epsilon> | Classes
+%!% Classes    ::= Class | Classes Class
 parseClassList(FileName,Tokens,[Class|RestClasses],TokenAfterClassList)
 :- Tokens = [tKeyw{word:class}|_],
    parseClass(FileName,Tokens,Class,TokenAfterClass),
@@ -247,6 +252,10 @@ parseClassList(FileName,Tokens,[Class|RestClasses],TokenAfterClassList)
 
 parseClassList(FileName,Tokens,[],Tokens).
 
+
+
+%%%%%%%%%%%%%%%%
+%!% Class      ::= class id Extends is VarList MethodList end
 parseClass(FileName,[tKeyw{word:class,loc:StartLine} | RestTokens],
 	   Class,TokensAfterClass)
 :- ( RestTokens = [tId{name:ClId,loc:_}|TokensAfterClassId],
@@ -262,10 +271,62 @@ parseClass(FileName,[tKeyw{word:class,loc:StartLine} | RestTokens],
 	  fail )
 .
 
+%%%%%%%%%%%%%%%%
+%!% Extends    ::= <epsilon> | extends Classexp
 parseExtends(FileName,[tKeyw{word:extends}|TokensAfterExtends],SuperClass,RestTokens) 
 :- !, parseClassExp(FileName,TokensAfterExtends,SuperClass,RestTokens).
 
 parseExtends(FileName,Tokens,pClass(id('Object'),nil,[],[],"*builtin*",0,0),
 	     Tokens).
 
+
+%%%%%%%%%%%%%%%%
+%!% Classexp   ::= Int | Bool | Void | Object | id
+%% parsing predefined classes
+parseClassExp(FileName,[tId{name:'Int',loc:StartLine} | RestTokens],
+	      pCexp(id:int,file:FileName,line:StartLine), RestTokens).
+parseClassExp(FileName,[tId{name:'Bool',loc:StartLine} | RestTokens],
+	      pCexp(id:bool,file:FileName,line:StartLine), RestTokens).
+parseClassExp(FileName,[tId{name:'Void',loc:StartLine} | RestTokens],
+	      pCexp(id:void,file:FileName,line:StartLine), RestTokens).
+parseClassExp(FileName,[tId{name:'Object',loc:StartLine} | RestTokens],
+	      pCexp(id:object,file:FileName,line:StartLine), RestTokens).
+
+%% parse user defined classes
+parseClassExp(FileName,[tId{name:Id,loc:StartLine} | RestTokens],
+	      pCexp(id:Id,file:FileName,line:StartLine), RestTokens).
+
+%%%%%%%%%%%%%%%%
+%!% VarList    ::= <epsilon> | vars Vars
+%!% Vars       ::= Var | Vars Var
+%% parse the optional var list, starting with 'vars'
+parseVarsList(FileName,Tokens,VarList,RestTokens)
+:- 
+    Tokens = [tKeyw{word:vars,loc:StartLine}|TokensAfterVars],
+    ( parseVars(FileName,TokensAfterVars,Vars,RestTokens) ;
+      ( !, 
+	printf(warning_output,"BOPL failed to parse vars list at file %s line %d\n",
+	       [FileName,StartLine]),
+	flush(warning_output),
+	fail ))
+.
+
+parseVarsList(_FileName,Tokens,[],Tokens).
+
+parseVars(FileName,Tokens,[Var|RestVars],RestTokens) :-
+        parseVar(FileName,Tokens,Var,TokensAfterVar),
+        !,
+        ( parseVars(FileName,TokenAfterVar,RestVars,RestTokens);
+          RestVars = [] )
+.
+
+
+%!% Var        ::= Classexp Ids ;
+parseVar(FileName,Tokens,Var,RestTokens) :-
+        parseClassExp(FileName,Tokens,Cexp,TokensAfterCexp),
+        atLine(Cexp,Line),
+        %%% probably wrong code....
+        parseIds(FileName,TokensAfterCexp,Ids,RestToken),
+        Var = pVar{cexp:Cexp,id:Id,file:FileName,line:Line)
+.
 %% incomplete

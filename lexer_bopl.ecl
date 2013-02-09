@@ -1,4 +1,3 @@
-%% -*- prolog -*-   %%% to make Emacs happy
 %%%%%%%%%%%%%%%%%%%%%%%%%%% The BOPL lexer; file lexer_bopl.ecl
 %%%%% for APS lecture MI030 "Analyse des programmes et sémantique"
 %%%%% course by http://pagesperso-systeme.lip6.fr/Jacques.Malenfant/
