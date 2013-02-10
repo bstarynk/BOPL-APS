@@ -346,6 +346,15 @@ parseVar(FileName,Tokens,VarList,RestTokens) :-
         )
 .
 
+parseLocals(FileName,Tokens,Locals,RestTokens) :-
+        Tokens = [tKeyw{loc:_,word:locals}|TokensAfterLet],
+        parseVars(FileName,TokensAfterLet,Locals,
+                  [tKeyw{word:in}|RestTokens])
+        .
+
+parseLocals(_,Tokens,[],Tokens).
+
+ 
 % Ids        ::= id | Ids , id
 parseIds(FileName,Tokens,IdList,RestTokens) :-
         Tokens = [tId{loc:_,name:Id}|TokensAfterId],
