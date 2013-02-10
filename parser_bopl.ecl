@@ -358,8 +358,8 @@ parseIds(FileName,Tokens,IdList,RestTokens) :-
 %!% MethodList ::= <epsilon> | methods Methods
 %!% Methods    ::= Method | Methods Method
 
-parseMethodList(_FileName,Tokens,[],Tokens).
-parseMethodList(FileName, 
+parseMethodsList(_FileName,Tokens,[],Tokens).
+parseMethodsList(FileName, 
                 [tKeyw{word:methods,loc:StartLine}|TokensAfterMethods],
                 MethodList,RestTokens)
         :-
@@ -771,6 +771,12 @@ parseBasic(FileName,Tokens,Basic,RestTokens)
            .
 
 parseBasic(FileName,Tokens,Basic,RestTokens)
+        :- Tokens = [tKeyw{word:new,loc:StartLine}|TokensAfterNew],
+        parseClassExp(FileName,TokensAfterNew,Cexp,RestTokens),
+        Basic = pNew{cexp:Cexp, file:FileName, line:StartLine}
+           .
+
+parseBasic(FileName,Tokens,Basic,RestTokens)
         :- 
         Tokens = [tNum{loc:Line,num:N}|RestTokens],
         Basic = pInt{num:N, file:FileName, line:Line}
@@ -806,13 +812,26 @@ parseBasic(FileName,Tokens,Basic,RestTokens)
         .
 
            
-% ActualList ::= epsilon | Actuals
+%!% ActualList ::= epsilon | Actuals
+%!% Actuals    ::= Exp | Actuals , Exp
 
-% Term       ::= Term * Fact | Term and Fact | Fact
-% Fact       ::= Fact = Basic | Fact < Basic | Basic
-% Basic      ::= not Exp | int | id | true | false | nil | self | super |
-%                new Classexp | ( Exp )
-% ActualList ::= epsilon | Actuals
-% Actuals    ::= Exp | Actuals , Exp
+parseActualList(FileName,Tokens,ActList,RestTokens) :-
+        parseActuals(FileName,Tokens,ActList,RestTokens),
+        !.
 
+parseActualList(_,Tokens,[],Tokens).
+
+parseActuals(FileName,Tokens,Actuals,RestTokens) :-
+        parseExp(FileName,Tokens,Exp,TokensAfterExp),
+        ( TokensAfterExp = [tDelim{cont:comma},TokensAfterComma],
+          parseActuals(FileName,TokensAfterComma,OtherActuals,
+                       RestTokens),
+          !,
+          Actuals = [Exp|OtherActuals]
+        ;
+          TokensAfterExp = RestTokens,
+          !,
+          Actuals = [Exp]
+        )
+        .
 %% incomplete
