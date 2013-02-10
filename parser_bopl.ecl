@@ -212,7 +212,7 @@ atLine([Head|_],StartLine) :- atLine(Head,StartLine).
 
 % parseFile(+FileName, -AST)
 parseFile(FileName,AST) :-
-    scanner:scan(FileName,Tokens),
+    scan(FileName,Tokens),
     parse(FileName,Tokens,AST),
     printf(output,"BOPL parsed file %s\n", [FileName]),
     pretty_print(stdout, AST, 80).
@@ -316,17 +316,132 @@ parseVarsList(_FileName,Tokens,[],Tokens).
 parseVars(FileName,Tokens,[Var|RestVars],RestTokens) :-
         parseVar(FileName,Tokens,Var,TokensAfterVar),
         !,
-        ( parseVars(FileName,TokenAfterVar,RestVars,RestTokens);
+        ( parseVars(FileName,TokensAfterVar,RestVars,RestTokens);
           RestVars = [] )
 .
 
 
 %!% Var        ::= Classexp Ids ;
-parseVar(FileName,Tokens,Var,RestTokens) :-
+parseVar(FileName,Tokens,VarList,RestTokens) :-
         parseClassExp(FileName,Tokens,Cexp,TokensAfterCexp),
         atLine(Cexp,Line),
-        %%% probably wrong code....
-        parseIds(FileName,TokensAfterCexp,Ids,RestToken),
-        Var = pVar{cexp:Cexp,id:Id,file:FileName,line:Line)
+        nonvar(FileName),
+        (
+            parseIds(FileName,TokensAfterCexp,IdList,TokensAfterIds),
+            TokensAfterIds = [tDelim{loc:_,cont:semicolon} | RestTokens],
+%% we distribute the Cexp to each Id
+            (foreach(Id,IdList),foreach(Var,VarList),param(Cexp),param(FileName),param(Line) do
+                Var = pVar{cexp:Cexp,id:Id,file:FileName,line:Line})
+        ;
+            !, 
+	printf(warning_output,"BOPL failed to parse vars  at file %s line %d\n",
+	       [FileName,Line]),
+	flush(warning_output),
+	fail 
+        )
 .
+
+% Ids        ::= id | Ids , id
+parseIds(FileName,Tokens,IdList,RestTokens) :-
+        Tokens = [tId{loc:_,name:Id}|TokensAfterId],
+        IdList = [Id|RestIds],
+        ( TokensAfterId = [tDelim{loc:_,cont:comma}|TokensAfterComma],
+          parseIds(FileName,TokensAfterComma,RestIds,RestTokens)
+        ; !, RestIds = [], TokensAfterId = RestTokens )
+        .
+
+%!% MethodList ::= <epsilon> | methods Methods
+%!% Methods    ::= Method | Methods Method
+
+parseMethodList(FileName,Tokens,[],Tokens).
+parseMethodList(FileName, 
+                [tKeyw{word:methods,loc:StartLine}|TokensAfterMethods],
+                MethodList,RestTokens)
+        :-
+        parseMethods(FileName,TokensAfterMethods,MethodList,RestToken)
+        ;
+        (!, 
+	printf(warning_output,"BOPL failed to parse methods at file %s line %d\n",
+	       [FileName,StartLine]),
+	flush(warning_output),
+	fail 
+         )
+          . 
+
+parseMethods(FileName,Tokens,[Method|RestMethods],RestTokens) :-
+        parseMethod(FileName,Tokens,Method,TokensAfterMethod),
+        (
+            parseMethods(FileName,TokensAfterMethod,RestMethod,
+                         RestToken)
+        ;
+            RestMethods = [], TokensAfterMethod = RestTokens
+        )
+        .
+
+%!% Method     ::= Classexp id ( FormalList ) Locals Seq
+parseMethod(FileName,Tokens,Method,RestTokens) :-
+        parseClassExp(FileName,Tokens,Cexp,TokensAfterCexp),
+        TokensAfterCexp = [tId(loc:_,name:Id)|TokensAfterId],
+        TokensAfterId = [tDelim(loc:_,cont:lparen)|TokensAfterComma],
+        parseFormalList(FileName,TokensAfterComma,Formals,
+                        TokensAfterFormalList),
+        TokensAfterFormalList = [tDelim(loc:RparenLine,cont:rparen)|TokensAfterRparen],
+        ( parseLocals(FileName,TokensAfterRparen,Locals,
+                      TokensAfterLocals),
+          parseSeq(FileName,TokensAfterLocals,Seq,RestTokens)
+        ;
+          !, 
+	printf(warning_output,"BOPL failed to parse method %s at file %s line %d\n",
+	       [Id,FileName,RparenLine]),
+	flush(warning_output),
+	fail 
+          )
+        .
+
+
+%!% FormalList ::= epsilon | Formals
+%!% Formals    ::= Formal | Formals , Formal
+%!% Formal     ::= Classexp id
+
+parseFormalList(FileName,Tokens,Formals,RestTokens) :-
+        parseFormals(FileName,Tokens,Formals,RestTokens)
+        .
+
+parseFormalList(FileName,Tokens,[],Tokens).
+
+parseFormals(FileName,Tokens,Formals,RestTokens) :-
+        parseFormal(FileName,Tokens,Formal,TokenAfterFormals),
+        (TokenAfterFomals = [tDelim{loc:_,cont:comma}|TokensAfterComma],
+         parseFormals(FileName,TokensAfterComma,RestFormals,
+                      RestTokens),
+         Formals=[Formal|RestFormals]
+        ;
+         !, Formals = [Formal], RestTokens = TokenAfterFormals
+        )
+        .
+
+parseFormal(FileName,Tokens,Formal,RestTokens)
+        :-
+        parseClassExp(FileName,Tokens,Cexp,TokensAfterCexp),
+        TokensAfterExp = [tId{loc:LineId,name:Id}|RestTokens],
+        Formal = pVar{cexp:Cexp,id:Id,file:FileName,line:LineId}
+        .
+
+%!% Seq        ::= begin Insts end
+parseSeq(FileName,Tokens,Seq,RestTokens)
+        :-
+        Tokens = [FirstToken|NextTokens],
+        ( FirstToken = tKeyw{word:begin,loc:StartLine},
+          parseInsts(FileName,NextTokens,Insts,TokensAfterInst),
+          TokensAfterInst = [tKeyw{word:end,loc:EndLine}],
+          Seq = Insts
+          ;
+          ( !, lexAt(FirstToken,FirstLine),
+            printf(warning_output,
+                   "BOPL failed to parse instruction sequence at file %s line %d\n",
+                   [FileName,FirstLine]),
+            flush(warning_output),
+            fail )
+        )
+        .
 %% incomplete
