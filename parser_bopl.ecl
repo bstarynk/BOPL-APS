@@ -91,8 +91,8 @@
 :- export struct(pSeq(lefti,righti,file,start,end)).
 :- export struct(pAssign(id,exp,file,line)).
 :- export struct(pWriteField(obj,id,val,file,line)).
-:- export struct(pIf(exp,ithen,ielse,file,start,end)).
-:- export struct(pWhile(exp,inst,file,start,end)).
+:- export struct(pIf(exp,seqthen,seqelse,file,start,end)).
+:- export struct(pWhile(exp,seqdo,file,start,end)).
 :- export struct(pReturn(exp,file,line)).
 :- export struct(pWriteln(exp,file,line)).
 
@@ -231,13 +231,15 @@ parseToken(Read, Expected) :-
 %%%%%%%%%%%%%%%%
 %!% Program    ::= program ClassList Locals Seq
 parseProgram(FileName,[Tprog|TokensAfterProg], 
-	     pProgram(Class,_Vars,SeqInsts,FileName,StartLine,EndLine), 
+	     pProgram{clas:Classes,vars:Vars,insts:SeqInsts,
+                      file:FileName,start:StartLine,end:EndLine}, 
 	     [])
 :-
     parseToken(Tprog,tKeyw{loc:StartLine,word:program}),
     parseClassList(FileName, TokensAfterProg, Classes, TokensAfterClassList),
     parseLocals(FileName,TokensAfterClassList, Vars, TokensAfterLocals), 
-    parseSeq(FileName,TokensAfterLocals,SeqInsts,[])
+    parseSeq(FileName,TokensAfterLocals,SeqInsts,[]),
+    atEnd(SeqInsts,EndLine)
 .
 
 
@@ -250,7 +252,7 @@ parseClassList(FileName,Tokens,[Class|RestClasses],TokenAfterClassList)
    parseClassList(FileName,TokenAfterClass,RestClasses,TokenAfterClassList)
 .
 
-parseClassList(FileName,Tokens,[],Tokens).
+parseClassList(_,Tokens,[],Tokens).
 
 
 
@@ -263,7 +265,10 @@ parseClass(FileName,[tKeyw{word:class,loc:StartLine} | RestTokens],
      TokensAfterExtends = [tKeyw{word:id}|TokensAfterIs],
      parseVarsList(FileName,TokensAfterIs,VarList,TokensAfterVarList),
      parseMethodsList(FileName,TokensAfterVarList,MethodsList,TokensAfterMethodsList),
-     TokensAfterMethodsList = [tKeyw{word:end,loc:EndLine}|TokensAfterClass]
+     TokensAfterMethodsList = [tKeyw{word:end,loc:EndLine}
+                              |TokensAfterClass],
+     Class = pClass{id:ClId,cexp:SuperClass,vars:VarList,methods:MethodsList,
+                    file:FileName,start:StartLine,end:EndLine}
     ) ; ( !,
 	  printf(warning_output,"BOPL failed to parse class at file %s line %d\n",
 		 [FileName,StartLine]),
@@ -276,7 +281,7 @@ parseClass(FileName,[tKeyw{word:class,loc:StartLine} | RestTokens],
 parseExtends(FileName,[tKeyw{word:extends}|TokensAfterExtends],SuperClass,RestTokens) 
 :- !, parseClassExp(FileName,TokensAfterExtends,SuperClass,RestTokens).
 
-parseExtends(FileName,Tokens,pClass(id('Object'),nil,[],[],"*builtin*",0,0),
+parseExtends(_FileName,Tokens,pClass(id('Object'),nil,[],[],"*builtin*",0,0),
 	     Tokens).
 
 
@@ -300,7 +305,7 @@ parseClassExp(FileName,[tId{name:Id,loc:StartLine} | RestTokens],
 %!% VarList    ::= <epsilon> | vars Vars
 %!% Vars       ::= Var | Vars Var
 %% parse the optional var list, starting with 'vars'
-parseVarsList(FileName,Tokens,VarList,RestTokens)
+parseVarsList(FileName,Tokens,Vars,RestTokens)
 :- 
     Tokens = [tKeyw{word:vars,loc:StartLine}|TokensAfterVars],
     ( parseVars(FileName,TokensAfterVars,Vars,RestTokens) ;
@@ -353,12 +358,12 @@ parseIds(FileName,Tokens,IdList,RestTokens) :-
 %!% MethodList ::= <epsilon> | methods Methods
 %!% Methods    ::= Method | Methods Method
 
-parseMethodList(FileName,Tokens,[],Tokens).
+parseMethodList(_FileName,Tokens,[],Tokens).
 parseMethodList(FileName, 
                 [tKeyw{word:methods,loc:StartLine}|TokensAfterMethods],
                 MethodList,RestTokens)
         :-
-        parseMethods(FileName,TokensAfterMethods,MethodList,RestToken)
+        parseMethods(FileName,TokensAfterMethods,MethodList,RestTokens)
         ;
         (!, 
 	printf(warning_output,"BOPL failed to parse methods at file %s line %d\n",
@@ -371,8 +376,8 @@ parseMethodList(FileName,
 parseMethods(FileName,Tokens,[Method|RestMethods],RestTokens) :-
         parseMethod(FileName,Tokens,Method,TokensAfterMethod),
         (
-            parseMethods(FileName,TokensAfterMethod,RestMethod,
-                         RestToken)
+            parseMethods(FileName,TokensAfterMethod,RestMethods,
+                         RestTokens)
         ;
             RestMethods = [], TokensAfterMethod = RestTokens
         )
@@ -381,6 +386,7 @@ parseMethods(FileName,Tokens,[Method|RestMethods],RestTokens) :-
 %!% Method     ::= Classexp id ( FormalList ) Locals Seq
 parseMethod(FileName,Tokens,Method,RestTokens) :-
         parseClassExp(FileName,Tokens,Cexp,TokensAfterCexp),
+        atLine(Cexp,StartLine),
         TokensAfterCexp = [tId(loc:_,name:Id)|TokensAfterId],
         TokensAfterId = [tDelim(loc:_,cont:lparen)|TokensAfterComma],
         parseFormalList(FileName,TokensAfterComma,Formals,
@@ -388,7 +394,11 @@ parseMethod(FileName,Tokens,Method,RestTokens) :-
         TokensAfterFormalList = [tDelim(loc:RparenLine,cont:rparen)|TokensAfterRparen],
         ( parseLocals(FileName,TokensAfterRparen,Locals,
                       TokensAfterLocals),
-          parseSeq(FileName,TokensAfterLocals,Seq,RestTokens)
+          parseSeq(FileName,TokensAfterLocals,Seq,RestTokens),
+          atEnd(Seq,EndLine),
+          Method = pMethod{id:Id,formals:Formals,cexp:Cexp,
+                           locals:Locals,inst:Seq,
+                           file:FileName,start:StartLine,end:EndLine}
         ;
           !, 
 	printf(warning_output,"BOPL failed to parse method %s at file %s line %d\n",
@@ -407,11 +417,11 @@ parseFormalList(FileName,Tokens,Formals,RestTokens) :-
         parseFormals(FileName,Tokens,Formals,RestTokens)
         .
 
-parseFormalList(FileName,Tokens,[],Tokens).
+parseFormalList(_FileName,Tokens,[],Tokens).
 
 parseFormals(FileName,Tokens,Formals,RestTokens) :-
         parseFormal(FileName,Tokens,Formal,TokenAfterFormals),
-        (TokenAfterFomals = [tDelim{loc:_,cont:comma}|TokensAfterComma],
+        (TokenAfterFormals = [tDelim{loc:_,cont:comma}|TokensAfterComma],
          parseFormals(FileName,TokensAfterComma,RestFormals,
                       RestTokens),
          Formals=[Formal|RestFormals]
@@ -423,7 +433,7 @@ parseFormals(FileName,Tokens,Formals,RestTokens) :-
 parseFormal(FileName,Tokens,Formal,RestTokens)
         :-
         parseClassExp(FileName,Tokens,Cexp,TokensAfterCexp),
-        TokensAfterExp = [tId{loc:LineId,name:Id}|RestTokens],
+        TokensAfterCexp = [tId{loc:LineId,name:Id}|RestTokens],
         Formal = pVar{cexp:Cexp,id:Id,file:FileName,line:LineId}
         .
 
@@ -431,9 +441,10 @@ parseFormal(FileName,Tokens,Formal,RestTokens)
 parseSeq(FileName,Tokens,Seq,RestTokens)
         :-
         Tokens = [FirstToken|NextTokens],
-        ( FirstToken = tKeyw{word:begin,loc:StartLine},
+        FirstToken = tKeyw{word:begin,loc:FirstLine},
+        ( 
           parseInsts(FileName,NextTokens,Insts,TokensAfterInst),
-          TokensAfterInst = [tKeyw{word:end,loc:EndLine}],
+          TokensAfterInst = [tKeyw{word:end,loc:_EndLine}|RestTokens],
           Seq = Insts
           ;
           ( !, lexAt(FirstToken,FirstLine),
@@ -444,4 +455,364 @@ parseSeq(FileName,Tokens,Seq,RestTokens)
             fail )
         )
         .
+
+parseInsts(FileName,Tokens,Insts,RestTokens) :-
+        parseInst(FileName,Tokens,InstLeft,TokensAfterLeft),
+        (
+            TokensAfterLeft = [tDelim{loc:_,cont:semicolon} |
+                               TokensAfterSemicol],
+            !,
+            parseInsts(FileName,TokensAfterSemicol,RightInsts,
+                       RestTokens),
+            Insts = [InstLeft|RightInsts]
+        ;
+            TokensAfterLeft = RestTokens,
+            Insts = [InstLeft]
+        )
+.
+
+%!% Inst       ::= id := Exp | Exp . id := Exp | return Exp |
+%!%                if Exp then Seq else Seq | while Exp do Seq |
+%!%                writeln ( Exp )
+
+%%% assignment instruction: id := Exp
+parseInst(FileName,Tokens,Inst,RestToken)
+        :- 
+        Tokens = [tId{loc:FirstLine,name:Id},
+                  tDelim{cont:assign}
+                 |TokensAfterAssign],
+        ( parseExp(FileName,TokensAfterAssign,Exp,RestToken),
+          Inst = pAssign{id:Id,exp:Exp,file:FileName,line:FirstLine}
+        ; !, 
+          printf(warning_output,
+                 "BOPL failed to parse assignment instruction at"
+                 " file %s line %d", [FileName,FirstLine]),
+          flush(warning_output),
+          fail)
+        .
+
+%%% writefield instruction: Exp . id := Exp
+parseInst(FileName,Tokens,Inst,RestTokens)
+        :-
+        parseExp(FileName,Tokens,ExpObj,TokensAfterExp1),
+        TokensAfterExp1 = [tDelim{loc:DotLine,cont:dot},
+                           tId{name:IdField},
+                           tDelim{cont:assign}
+                          |TokensAfterAssign],
+        ( parseExp(FileName,TokensAfterAssign,ExpField,RestTokens),
+          Inst = pWriteField{obj:ExpObj,id:IdField,val:ExpField,
+                             file:FileName,line:DotLine}
+        ; !,
+          printf(warning_output,
+                 "BOPL failed to parse write field instruction at"
+                 " file %s line %d", [FileName,DotLine]),
+          flush(warning_output),
+          fail)
+        .
+
+
+%%% return instruction: return Exp 
+parseInst(FileName,Tokens,Inst,RestTokens)
+        :- 
+        Tokens = [tKeyw{loc:StartLine,word:return}
+                 |TokensAfterReturn],
+        ( parseExp(FileName,TokensAfterReturn,Expr,RestTokens),
+          Inst = pReturn{exp:Expr,file:FileName,line:StartLine}
+        ;
+          !,
+          printf(warning_output,
+                 "BOPL failed to parse return instruction at"
+                 " file %s line %d", [FileName,StartLine]),
+          flush(warning_output),
+          fail)
+        .
+
+%%%% if instruction:  if Exp then Seq else Seq
+parseInst(FileName,Tokens,Inst,RestTokens)
+        :- 
+        Tokens = [tKeyw{loc:StartLine,word:if}
+                 |TokensAfterIf],
+        ( parseExp(FileName,TokensAfterIf,ExprCond,
+                    TokensAfterCond),
+          TokensAfterCond = [tKeyw{loc:ThenLine,word:then}
+                            |TokensAfterThen],
+          (
+              parseSeq(FileName,TokensAfterThen,SeqThen,
+                       TokensAfterThenSeq)
+          ; !,
+            printf(warning_output,
+                   "BOPL failed to parse then sequence at"
+                   " file %s line %d", [FileName,ThenLine]),
+            flush(warning_output),
+            fail),
+          TokensAfterThenSeq = [tKeyw{loc:ElseLine,word:else}
+                               |TokensAfterElse],
+          (
+              parseSeq(FileName,TokensAfterElse,SeqElse,
+                       TokensAfterElseSeq)
+          ; !,
+            printf(warning_output,
+                   "BOPL failed to parse else sequence at"
+                   " file %s line %d", [FileName|ElseLine]),
+            flush(warning_output),
+            fail),
+          atEnd(SeqElse,EndLine),
+          TokensAfterElseSeq = RestTokens,
+          Inst = pIf{exp:ExprCond,seqthen:SeqThen,seqelse:SeqElse,
+                     file:FileName,start:StartLine,end:EndLine}
+        ; !,
+          printf(warning_output, 
+                 "BOPL failed to parse if instruction at file %s line"
+                 " %d",
+                 [FileName,StartLine]),
+          flush(warning_output),
+          fail)
+        .
+
+%%%% while instruction: while Exp do Seq
+parseInst(FileName,Tokens,Inst,RestTokens)
+        :- 
+        Tokens = [tKeyw{loc:StartLine,word:while}
+                 |TokensAfterWhile],
+        (
+            (parseExp(FileName,TokensAfterWhile,ExprCond,
+                       TokensAfterCond)
+            ; !, 
+              printf(warning_output, 
+                     "BOPL failed to parse while expression at file %s line"
+                     " %d",
+                     [FileName,StartLine]),
+              flush(warning_output),
+              fail),
+            TokensAfterCond = [tKeyw{loc:DoLine,word:do}
+                              | TokensAfterDo],
+            (parseSeq(FileName,TokensAfterDo,SeqDo,
+                      RestTokens)
+            ; !,
+              printf(warning_output, 
+                     "BOPL failed to parse do sequence at file %s line"
+                     " %d",
+                     [FileName,DoLine]),
+              flush(warning_output),
+              fail),
+            atEnd(SeqDo,EndLine),
+            Inst = pWhile{exp:ExprCond,seqdo:SeqDo,
+                          file:FileName,start:StartLine,end:EndLine}
+        )    
+        .
+
+
+%%%% writeln instruction writeln (Exp)
+
+parseInst(FileName,Tokens,Inst,RestTokens)
+        :- 
+        Tokens = [tKeyw{loc:StartLine,word:writeln}|TokensAfterWriteln],
+        (
+            TokensAfterWriteln = [tDelim{cont:lparen}|TokensAfterLparen],
+            parseExp(FileName,TokensAfterLparen,ExprWri,
+                       TokensAfterExpr),
+            TokensAfterExpr = [tDelim{cont:rparen}|RestTokens],
+            Inst = pWriteln{exp:ExprWri,file:FileName,line:StartLine}
+            ; !, 
+          printf(warning_output, 
+                 "BOPL failed to parse writeln instruction at file %s line"
+                 " %d",
+                 [FileName,StartLine]),
+          flush(warning_output),
+          fail        
+        )
+        .
+
+%%%% the original syntax rules
+%!% Exp        ::= Exp . id | Exp . id ( ActualList ) | Exp instanceof Classexp |
+%!%                Exp + Term | Exp - Term | Exp or Term | Term
+%%%% are rewritten as
+%!% Exp        ::= Term RestExpr
+%!% RestExpr   ::=  . id | . id ( ActualList ) | instanceof Classexp 
+%!%                + Expr | - Expr | or Expr | <epsilon>
+
+parseExp(FileName,Tokens,Exp,RestTokens) :-
+        parseTerm(FileName,Tokens,Term,TokensAfterTerm),
+        parseRestExp(FileName,Term,TokensAfterTerm,Exp,RestTokens)
+.
+
+parseRestExp(FileName,ParExp,[tDelim{cont:dot,loc:StartLine},
+                              tId{name:Id},tDelim(cont:lparen)
+                             |TokensAfterLparen],
+             Exp,RestTokens) :-
+        !,
+        parseActualList(FileName,TokensAfterLparen,Args,
+                        TokensAfterArgs),
+        TokensAfterArgs=[tDelim(cont:rparen)|RestTokens],
+        Exp = pMethodCall{recv:ParExp,id:Id,args:Args,file:FileName,
+                          line:StartLine}
+        .
+
+parseRestExp(FileName,ParExp,[tDelim{cont:dot,loc:StartLine},
+                              tId{name:Id}|RestTokens],
+             Exp,RestTokens) :-
+        !,
+        Exp = pReadField{obj:ParExp,id:Id,file:FileName,line:StartLine}
+        .
+
+parseRestExp(FileName,ParExp,[tKeyw{loc:Line,word:instanceof}
+                             |TokensAfterInstanceof],
+             Exp,RestTokens) :-
+        !,
+        parseClassExp(FileName,TokensAfterInstanceof,Cexp,RestTokens),
+        Exp = pInstanceOf(exp:ParExp,cexp:Cexp,
+                          file:FileName,line:Line)
+        .
+
+parseRestExp(FileName,ParExp,[tDelim{cont:plus,loc:StartLine}
+                             |TokensAfterPlus],
+             Exp,RestTokens) :-
+        !,
+        parseExp(FileName,TokensAfterPlus,Term,RestTokens),
+        Exp = pPlus(left:ParExp,right:Term,
+                    file:FileName,line:StartLine)
+        .
+
+parseRestExp(FileName,ParExp,[tDelim{cont:minus,loc:StartLine}
+                             |TokensAfterMinus],
+             Exp,RestTokens) :-
+        !,
+        parseExp(FileName,TokensAfterMinus,Term,RestTokens),
+        Exp = pMinus(left:ParExp,right:Term,
+                    file:FileName,line:StartLine)
+        .
+
+
+parseRestExp(FileName,ParExp,[tKeyw{word:or,loc:StartLine}
+                             |TokensAfterOr],
+             Exp,RestTokens) :-
+        !,
+        parseExp(FileName,TokensAfterOr,Term,RestTokens),
+        Exp = pOr(left:ParExp,right:Term,
+                  file:FileName,line:StartLine)
+        .
+
+
+parseRestExp(_,ParentExp,Tokens,ParentExp,Tokens).
+
+%!% Term       ::= Fact RestTerm
+%!% RestTerm   ::= * Fact | and Fact | <epsilon>
+
+parseTerm(FileName,Tokens,Term,RestTokens) :-
+        parseFact(FileName,Tokens,Fact,TokensAfterFact),
+        parseRestTerm(FileName,Fact,TokensAfterFact,Term,RestTokens)
+.
+
+parseRestTerm(FileName,ParTerm,
+              [tDelim{cont:mult,loc:StartLine}
+              |TokensAfterMult],
+              Term,RestTokens)
+        :-
+        !,
+        parseFact(FileName,TokensAfterMult,Fact,RestTokens),
+        Term = pTimes{left:ParTerm,right:Fact,
+                      file:FileName,line:StartLine}
+        .
+
+parseRestTerm(FileName,ParTerm,
+              [tKeyw{word:and,loc:StartLine}
+              |TokensAfterAnd],
+              Term,RestTokens)
+        :-
+        !,
+        parseFact(FileName,TokensAfterAnd,Fact,RestTokens),
+        Term = pAnd{left:ParTerm,right:Fact,
+                    file:FileName,line:StartLine}
+        .
+
+parseRestTerm(_,ParTerm,RestTokens,ParTerm,RestTokens).
+
+% Fact       ::= Fact = Basic | Fact < Basic | Basic
+
+%!%     Fact ::= Basic RestFact
+%!%     RestFact := = Fact | < Fact | <epsilon>
+
+parseFact(FileName,Tokens,Fact,RestTokens) :-
+        parseBasic(FileName,Tokens,Basic,TokensAfterBasic),
+        parseRestFact(FileName,Basic,TokensAfterBasic,Fact,RestTokens)
+.
+
+parseRestFact(FileName,ParBasic,
+              [tDelim{cont:less,loc:StartLine}
+              |TokensAfterLess],
+               Fact,RestTokens)
+        :-
+        !,
+        parseFact(FileName,TokensAfterLess,FactRight,RestTokens),
+        Fact = pLess(left:ParBasic,right:FactRight,
+                     file:FileName,line:StartLine)
+        .
+
+parseRestFact(FileName,ParBasic,
+              [tDelim{cont:equal,loc:StartLine}
+              |TokensAfterEqual],
+               Fact,RestTokens)
+        :-
+        !,
+        parseFact(FileName,TokensAfterEqual,FactRight,RestTokens),
+        Fact = pEqual(left:ParBasic,right:FactRight,
+                     file:FileName,line:StartLine)
+        .
+
+parseRestFact(_,ParBasic,RestTokens,ParBasic,RestTokens).
+
+%!% Basic      ::= not Exp | int | id | true | false | nil | self | super |
+%!%                new Classexp | ( Exp )
+
+parseBasic(FileName,Tokens,Basic,RestTokens)
+        :- Tokens = [tKeyw{word:not,loc:StartLine}|TokensAfterNot],
+        parseExp(FileName,TokensAfterNot,ExpNeg,RestTokens),
+        Basic = pNot{exp:ExpNeg, file:FileName, line:StartLine}
+           .
+
+parseBasic(FileName,Tokens,Basic,RestTokens)
+        :- 
+        Tokens = [tNum{loc:Line,num:N}|RestTokens],
+        Basic = pInt{num:N, file:FileName, line:Line}
+        .
+           
+parseBasic(FileName,Tokens,Basic,RestTokens)
+        :- 
+        Tokens = [tId{loc:Line,name:N}|RestTokens],
+        Basic = pId{id:N, file:FileName, line:Line}
+        .
+parseBasic(FileName,Tokens,Basic,RestTokens)
+        :- 
+        Tokens = [tKeyw{loc:Line,word:true}|RestTokens],
+        Basic = pBoolean{bool:true, file:FileName, line:Line}
+        .
+
+parseBasic(FileName,Tokens,Basic,RestTokens)
+        :- 
+        Tokens = [tKeyw{loc:Line,word:nil}|RestTokens],
+        Basic = pNil{file:FileName, line:Line}
+        .
+
+parseBasic(FileName,Tokens,Basic,RestTokens)
+        :- 
+        Tokens = [tKeyw{loc:Line,word:self}|RestTokens],
+        Basic = pSelf{file:FileName, line:Line}
+        .
+
+parseBasic(FileName,Tokens,Basic,RestTokens)
+        :- 
+        Tokens = [tKeyw{loc:Line,word:super}|RestTokens],
+        Basic = pSuper{file:FileName, line:Line}
+        .
+
+           
+% ActualList ::= epsilon | Actuals
+
+% Term       ::= Term * Fact | Term and Fact | Fact
+% Fact       ::= Fact = Basic | Fact < Basic | Basic
+% Basic      ::= not Exp | int | id | true | false | nil | self | super |
+%                new Classexp | ( Exp )
+% ActualList ::= epsilon | Actuals
+% Actuals    ::= Exp | Actuals , Exp
+
 %% incomplete
