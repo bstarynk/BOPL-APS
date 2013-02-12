@@ -410,8 +410,11 @@ parseVar(FileName,Tokens,VarList,RestTokens) :-
 
 parseLocals(FileName,Tokens,Locals,RestTokens) :-
         Tokens = [tKeyw{loc:_,word:let}|TokensAfterLet],
-        parseVars(FileName,TokensAfterLet,Locals,
-                  [tKeyw{word:in}|RestTokens])
+        parseVars(FileName,TokensAfterLet,Locals,TokensAfterVars),
+	printf(output,"parseLocals Locals=%w\n..parseLocals TokensAfterVars=%w\n",
+	       [Locals,TokensAfterVars]),
+	TokensAfterVars = [tKeyw{word:in}|RestTokens],
+	!
         .
 
 parseLocals(_,Tokens,[],Tokens).
@@ -452,18 +455,24 @@ parseMethodsList(FileName,
 
 parseMethodsList(_FileName,Tokens,[],Tokens).
 
+%%% notice that the last Method of a MethodsList or of Methods is
+%%% followed by the 'end' of the containing class
 parseMethods(FileName,Tokens,Methods,RestTokens) :-
     printf(output,"parseMethods Tokens=%w\n", [Tokens]),
     parseMethod(FileName,Tokens,Method1,TokensAfterMethod1),
     printf(output,"parseMethods Method1=%w\n ..parseMethods.. TokensAfterMethod1=%w\n", 
 	   [Method1,TokensAfterMethod1]),
         (
+	    TokensAfterMethod1 = [tKeyw{word:end}|_],
+            Methods = [Method1], RestTokens = TokensAfterMethod1,
+	    !
+	    ;
             parseMethods(FileName,TokensAfterMethod1,RestMethods,
                          TokensAfterMethods),
 	    Methods = [Method1|RestMethods],
 	    RestTokens = TokensAfterMethods,
 	    !
-        ;
+            ;
             Methods = [Method1], RestTokens = TokensAfterMethod1
         )
         .
@@ -481,8 +490,11 @@ parseMethod(FileName,Tokens,Method,RestTokens) :-
 	       [Id,TokensAfterLparen]),
         parseFormalList(FileName,TokensAfterLparen,Formals,
                         TokensAfterFormalList),
-	printf(output,"parseMethod Formals %w\n ..parseMethod TokensAfterFormalList=%w\n", [Formals,TokensAfterFormalList]),
+	printf(output,"parseMethod Formals %w\n ..parseMethod TokensAfterFormalList=%w\n",
+	       [Formals,TokensAfterFormalList]),
         TokensAfterFormalList = [tDelim{loc:RparenLine,cont:rparen}|TokensAfterRparen],
+	printf(output,"parseMethod TokensAfterRparen=%w\n", [TokensAfterRparen]),
+	!,
         ( parseLocals(FileName,TokensAfterRparen,Locals,
                       TokensAfterLocals),
           parseSeq(FileName,TokensAfterLocals,Seq,RestTokens),
