@@ -135,53 +135,76 @@ equal(61).
 %% -NextLineno is the next line number.
 
 scanToken(IS, C, Lineno, Token, NextC, NextLineno) :-
-%%% digits are numbers
-  ( isDigit(C), !, getInt(IS, C, Num, NextC), Token=tNum{loc:Lineno,num:Num}, NextLineno = Lineno 
-%%% scan letters as keywords or identifiers
-    ; (isLower(C) ; isUpper(C)),
+    %%% digits are numbers
+    ( isDigit(C), !, 
+      getInt(IS, C, Num, NextC), 
+      Token=tNum{loc:Lineno,num:Num}, NextLineno = Lineno 
+      %%% scan letters as keywords or identifiers
+      ; (isLower(C) ; isUpper(C)),
+	!,
+	getId(IS, C, Id, NextC),
+	( reservedWord(Id)
+	  -> 
+              Token = tKeyw{loc:Lineno,word:Id},  NextLineno = Lineno 
+	  ; Token = tId{loc:Lineno,name:Id}, NextLineno = Lineno 
+	)
+      ; (space(C); tab(C)), 
+	!,
+	get(IS,Char), scanToken(IS,Char,Lineno,Token,NextC,NextLineno)
+      ; (endline(C)),
+	!,
+	%%% for a newline we need to increment the line number
+	get(IS,Char), 
+	(SuccLineno is Lineno + 1, 
+         scanToken(IS,Char,SuccLineno,Token,NextC,NextLineno))
+      %%% skip comments starting by #
+      ; (hashcomment(C),
+	 !,
+	 skipline(IS,C,AfterC),
+	 (SuccLineno is Lineno + 1, 
+          scanToken(IS,AfterC,SuccLineno,Token,NextC,NextLineno))
+	)
+      %%% end of file
+      ; isEos(C), !, Token = eof, NextC = C, NextLineno = Lineno
+      %%% single character delimiters
+      ; period(C), !, 
+	Token = tDelim{loc:Lineno,cont:period}, get(IS, NextC), NextLineno = Lineno
+      ; lparen(C), !, 
+	Token = tDelim{loc:Lineno,cont:lparen}, get(IS, NextC), NextLineno = Lineno
+      ; rparen(C), !, 
+	Token = tDelim{loc:Lineno,cont:rparen}, get(IS, NextC), NextLineno = Lineno
+      ; times(C), !, 
+	Token = tDelim{loc:Lineno,cont:times}, get(IS, NextC), NextLineno = Lineno
+      ; plus(C), !, 
+	Token = tDelim{loc:Lineno,cont:times}, get(IS, NextC), NextLineno = Lineno
+      ; comma(C), !, 
+	Token = tDelim{loc:Lineno,cont:comma}, get(IS, NextC), NextLineno = Lineno
+      ; minus(C), !, 
+	Token = tDelim{loc:Lineno,cont:minus}, get(IS, NextC), NextLineno = Lineno
+      ; semicolon(C), !, 
+	Token = tDelim{loc:Lineno,cont:semicolon}, get(IS, NextC), NextLineno = Lineno
+      ; less(C), !, 
+	Token = tDelim{loc:Lineno,cont:less}, get(IS, NextC), NextLineno = Lineno
+      ; equal(C), !, 
+	Token = tDelim{loc:Lineno,cont:equal}, get(IS, NextC), NextLineno = Lineno
+      %%% two characters := is the assign delimiter
+      ; colon(C), !, get(IS, Eq), equal(Eq), !,
+	Token = tDelim{loc:Lineno,cont:assign},
+	get(IS, NextC), NextLineno = Lineno
+      ; !, printf(warning_output, "BOPL lexical error line %d char %c\n", [Lineno, C]), fail
+    ).					    
+
+
+skipline(IS,C,NextC) :- 
+    var(NextC),
+    ( endline(C) -> get(IS,NextC), !
+      ;
+      isEos(C) -> NextC = C, !
+      ;
       !,
-      getId(IS, C, Id, NextC),
-    ( reservedWord(Id), !, ( Token=tKeyw{loc:Lineno,word:Id},  NextLineno = Lineno )
-			       ; ( Token=tId{loc:Lineno,name:Id}, NextLineno = Lineno )
-    )
-    ; (space(C); tab(C)), 
-      !,
-      get(IS,Char), scanToken(IS,Char,Lineno,Token,NextC,NextLineno)
-    ; (endline(C)),
-       !,
-%%% for a newline we need to increment the line number
-       get(IS,Char), 
-       (SuccLineno is Lineno + 1, scanToken(IS,Char,SuccLineno,Token,NextC,NextLineno))
-%%% skip comments starting by #
-    ; (hashcomment(C),
-       !,
-       skipline(IS,C,NextC),
-       (SuccLineno is Lineno + 1, scanToken(IS,_Char,SuccLineno,Token,NextC,NextLineno))
-      )
-%%% end of file
-    ; isEos(C), !, Token = eof, NextC = C, NextLineno = Lineno
-%%% single character delimiters
-    ; period(C), !, Token = tDelim{loc:Lineno,cont:period}, get(IS, NextC), NextLineno = Lineno
-    ; lparen(C), !, Token = tDelim{loc:Lineno,cont:lparen}, get(IS, NextC), NextLineno = Lineno
-    ; rparen(C), !, Token = tDelim{loc:Lineno,cont:rparen}, get(IS, NextC), NextLineno = Lineno
-    ; times(C), !, Token = tDelim{loc:Lineno,cont:times}, get(IS, NextC), NextLineno = Lineno
-    ; plus(C), !, Token = tDelim{loc:Lineno,cont:times}, get(IS, NextC), NextLineno = Lineno
-    ; comma(C), !, Token = tDelim{loc:Lineno,cont:comma}, get(IS, NextC), NextLineno = Lineno
-    ; minus(C), !, Token = tDelim{loc:Lineno,cont:minus}, get(IS, NextC), NextLineno = Lineno
-    ; semicolon(C), !, Token = tDelim{loc:Lineno,cont:semicolon}, get(IS, NextC), NextLineno = Lineno
-    ; less(C), !, Token = tDelim{loc:Lineno,cont:less}, get(IS, NextC), NextLineno = Lineno
-    ; equal(C), !, Token = tDelim{loc:Lineno,cont:equal}, get(IS, NextC), NextLineno = Lineno
-%%% two characters := is the assign delimiter
-  ; colon(C), !, get(IS, Eq), equal(Eq), Token = tDelim{loc:Lineno,cont:assign},
-    get(IS, NextC), NextLineno = Lineno
-  ; !, printf(warning_output, "BOPL lexical error line %d char %c\n", [Lineno, C]), fail
-  ).					    
-
-
-
-skipline(IS,C,NextC) :- not(endline(C)), !, get(IS,SuccC), skipline(IS,SuccC,NextC).
-skipline(_IS,C,NextC) :- isEos(C), NextC = C.
-skipline(IS,C,NextC) :- endline(C), !, get(IS,NextC).
+      get(IS,SuccC), !, 
+      skipline(IS,SuccC,NextC)
+    ) .
 
 
 
