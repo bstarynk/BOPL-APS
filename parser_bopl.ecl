@@ -291,11 +291,9 @@ parseClass(FileName,[tKeyw{word:class,loc:StartLine},tId{name:ClId,loc:_} |Token
        printf("parseClass SuperClass=%w  TokensAfterExtends=%w\n", [SuperClass,TokensAfterExtends]),
        TokensAfterExtends = [tKeyw{word:is}|TokensAfterIs],
        printf("parseClass TokensAfterIs=%w\n", [TokensAfterIs]),
-       !,
        parseVarsList(FileName,TokensAfterIs,VarList,TokensAfterVarList),
        printf("parseClass VarList=%w TokensAfterVarList=%w\n",
               [VarList,TokensAfterVarList]),nl,
-       !,
        parseMethodsList(FileName,TokensAfterVarList,MethodsList,TokensAfterMethodsList),
        printf("parseClass MethodsList=%w\n", [MethodsList]),nl,
        TokensAfterMethodsList = [tKeyw{word:end,loc:EndLine}
@@ -349,23 +347,23 @@ parseClassExp(FileName,[tId{name:Id,loc:StartLine} | RestTokens],
 %% parse the optional var list, starting with 'vars'
 parseVarsList(FileName,Tokens,Vars,RestTokens)
 :- 
-        printf("parseVarsList start Tokens=%w\n",[Tokens]),
-        Tokens = [tKeyw{word:vars,loc:StartLine}|TokensAfterVars],
-        printf("parseVarsList StartLine=%w TokensAfterVars=%w\n",[StartLine,TokensAfterVars]),
-        !,
-        ( parseVars(FileName,TokensAfterVars,Vars,RestTokens),
-	  printf("parseVarsList Vars=%w RestTokens=%w\n", [Vars,RestTokens])
+        Tokens = [tKeyw{word:vars,loc:StartLine}|TokensAfterKwVars],
+	printf(output,"parseVarsList TokensAfterKwVars=%w\n", [TokensAfterKwVars]),
+        ( parseVars(FileName,TokensAfterKwVars,Vars,TokensAfterVars),
+	  printf(output,"parseVarsList Vars=%w TokensAfterVars=%w\n",
+		 [Vars,TokensAfterVars]),
+	  RestTokens = TokensAfterVars,
+	  !
 	  ;
-          ( !, 
-            printf(warning_output,"BOPL failed to parse vars list at file %s line %w\n",
-                   [FileName,StartLine]),
-            flush(warning_output),
-            fail ))
+          printf(warning_output,"BOPL failed to parse vars list at file %s line %w\n",
+                 [FileName,StartLine]),
+          flush(warning_output),
+          !, fail )
 .
 
 parseVarsList(_FileName,Tokens,[],Tokens) :- !.
 
-%%% for debugging, parse a string as a program
+%%% for debugging, parse a string as a list of vars
 :- export parStrVarsList/2.
 parStrVarsList(String,AST) :-
     scanString(String,Tokens),
@@ -373,31 +371,29 @@ parStrVarsList(String,AST) :-
     parseVarsList("*string*",Tokens,AST,[]), !.
 
 parseVars(FileName,Tokens,AllVars,RestTokens) :-
-        parseVar(FileName,Tokens,VarList,TokensAfterVar),
+        parseVar(FileName,Tokens,VarList,TokensAfterVar1),
         !,
-        ( parseVars(FileName,TokensAfterVar,RestVars,RestTokens),
-	  append(VarList,RestVars,AllVars);
-          AllVars = VarList )
+        ( parseVars(FileName,TokensAfterVar1,RestVars,TokensAfterVars),
+	  append(VarList,RestVars,AllVars),
+	  RestTokens = TokensAfterVars;
+          AllVars = VarList,
+	  RestTokens = TokensAfterVar1)
 .
 
 
 %!% Var        ::= Classexp Ids ;
 parseVar(FileName,Tokens,VarList,RestTokens) :-
         nonvar(FileName),
-        printf("parseVar start Tokens=%w\n",[Tokens]),
         parseClassExp(FileName,Tokens,Cexp,TokensAfterCexp),
-        printf("parseVar Cexp=%w TokensAfterCexp=%w\n",[Cexp,TokensAfterCexp]),
         atLine(Cexp,Line),
         !,
         (
             parseIds(FileName,TokensAfterCexp,IdList,TokensAfterIds),
-            printf("parseVar IdList=%w TokensAfterIds=%w\n", [IdList,TokensAfterIds]),
             TokensAfterIds = [tDelim{loc:_,cont:semicolon} | RestTokens],
 %% we distribute the Cexp to each Id
             (param(Cexp),param(FileName),param(Line),
 	     foreach(Id,IdList),foreach(Var,VarList) do
-                Var = pVar{cexp:Cexp,id:Id,file:FileName,line:Line}),
-	    printf("parseVar VarList=%w\n",[VarList])
+                Var = pVar{cexp:Cexp,id:Id,file:FileName,line:Line})
         ;
             !, 
 	printf(warning_output,"BOPL failed to parse vars  at file %s line %w\n",
@@ -418,7 +414,6 @@ parseLocals(_,Tokens,[],Tokens).
  
 % Ids        ::= id | Ids , id
 parseIds(FileName,Tokens,IdList,RestTokens) :-
-        printf("parseIds start Tokens=%w\n", [Tokens]),
         Tokens = [tId{loc:_,name:Id}|TokensAfterId],
         !,
         ( TokensAfterId = [tDelim{loc:_,cont:comma}|TokensAfterComma],
@@ -437,9 +432,11 @@ parseMethodsList(FileName,
                 [tKeyw{word:methods,loc:StartLine}|TokensAfterMethods],
                 MethodList,RestTokens)
         :-
-        parseMethods(FileName,TokensAfterMethods,MethodList,RestTokens)
+	    printf("parseMethodsList TokensAfterMethods=%w\n",[TokensAfterMethods]),
+            parseMethods(FileName,TokensAfterMethods,MethodList,RestTokens),
+	    printf("parseMethodsList MethodList=%w",[MethodList])
         ;
-        (!, 
+        ( !, 
 	printf(warning_output,"BOPL failed to parse methods at file %s line %w\n",
 	       [FileName,StartLine]),
 	flush(warning_output),
@@ -485,6 +482,12 @@ parseMethod(FileName,Tokens,Method,RestTokens) :-
           )
         .
 
+%%% for debugging, parse a string as a method
+:- export parStrMethod/2.
+parStrMethod(String,AST) :-
+    scanString(String,Tokens),
+    printf(output,"parStrMethod Tokens=%w\n",[Tokens]), !,
+    parseMethod("*string*",Tokens,AST,[]), !.
 
 %!% FormalList ::= epsilon | Formals
 %!% Formals    ::= Formal | Formals , Formal
