@@ -1,0 +1,14 @@
+## file ex2cla1m.bopl ; a program with a class with only one method
+program
+  class SoloClass is
+  ## no member variables
+  methods 
+    Int meth () 
+    begin
+      return 0
+    end
+  end
+begin
+  return nil
+end
+

@@ -216,6 +216,7 @@ atLine([Head|_],StartLine) :- atLine(Head,StartLine).
 parseFile(FileName,AST) :-
     scan(FileName,Tokens),
     parse(FileName,Tokens,AST),
+    !,
     printf(output,"BOPL parsed file %s\n", [FileName]),
     pretty_print(stdout, AST, 80).
 
@@ -238,16 +239,21 @@ parseProgram(FileName,[Tprog|TokensAfterProg],
              Program, 
 	     []) :-
     parseToken(Tprog,tKeyw{loc:StartLine,word:program}),
+    !,
     printf(stdout,"parseProgram TokensAfterProg: %w\n",[TokensAfterProg]),nl,
     parseClassList(FileName,TokensAfterProg,Classes,TokensAfterClassList),
-    printf(stdout,"parseProgram got Classes: %w TokensAfterClassList= %w\n",[Classes,TokensAfterClassList]),nl,
+    printf(stdout,"parseProgram got Classes: %w\n..parseProgram TokensAfterClassList= %w\n",[Classes,TokensAfterClassList]),
+    !,
     parseLocals(FileName,TokensAfterClassList,Vars,TokensAfterLocals), 
-    printf(stdout,"parseProgram local Vars: %w  TokensAfterLocals: %w\n",[Vars,TokensAfterLocals]),
+    printf(stdout,"parseProgram local Vars: %w\n..parseProgram  TokensAfterLocals: %w\n",[Vars,TokensAfterLocals]),
+    !,
     parseSeq(FileName,TokensAfterLocals,SeqInsts,[]),
     printf(stdout,"parseProgram SeqInsts %w\n",[SeqInsts]),
     atEnd(SeqInsts,EndLine),
+    !,
     Program = pProgram{clas:Classes,vars:Vars,insts:SeqInsts,
                        file:FileName,start:StartLine,end:EndLine},
+    !,
     printf(stdout, "parsed Program:%w\n", [Program]),nl
 .
 
@@ -262,15 +268,26 @@ parStrProgram(String,AST) :-
 %!% Classes    ::= Class | Classes Class
 parseClassList(FileName,Tokens,Classes,RestTokens)
 :- 
+    printf(output,"parseClassList Tokens=%w\n", [Tokens]),
     %% a lookahead
-    Tokens = [tKeyw{word:class}|_], !,
-    parseClass(FileName,Tokens,Class1,TokenAfterClass1),
-    parseClassList(FileName,TokenAfterClass1,RestClasses,TokensAfterClassList),
-    Classes = [Class1|RestClasses],
-    RestTokens = TokensAfterClassList
+    ( Tokens = [tKeyw{word:class}|_]
+      ->
+	  parseClass(FileName,Tokens,Class1,TokensAfterClass1),
+	  printf(output,"parseClassList Class1=%w, TokensAfterClass1=%w\n",
+		 [Class1,TokensAfterClass1]),
+	  !,
+	  parseClassList(FileName,TokensAfterClass1,RestClasses,TokensAfterClassList),
+	  Classes = [Class1|RestClasses],
+	  RestTokens = TokensAfterClassList,
+	  !
+      ; 
+      Classes = [],
+      RestTokens = Tokens,
+      !
+    ),
+    printf(output,"parseClassList Classes=%w\n.. parseClassList RestTokens=%w\n",
+	   [Classes,RestTokens])
 .
-
-parseClassList(_,Tokens,[],Tokens).
 
 %%% for debugging, parse a string as a class list
 :- export parStrClassList/2.
@@ -323,11 +340,15 @@ parStrClass(String,AST) :-
 
 %%%%%%%%%%%%%%%%
 %!% Extends    ::= <epsilon> | extends Classexp
-parseExtends(FileName,[tKeyw{word:extends}|TokensAfterExtends],SuperClass,RestTokens) 
-:- !, parseClassExp(FileName,TokensAfterExtends,SuperClass,RestTokens).
+parseExtends(FileName,Tokens,SuperClass,RestTokens) 
+:- Tokens = [tKeyw{word:extends}|TokensAfterExtends],
+   !, 
+   parseClassExp(FileName,TokensAfterExtends,SuperClass,RestTokens).
 
-parseExtends(_FileName,Tokens,pClass(id('Object'),nil,[],[],"*builtin*",0,0),
-	     Tokens).
+parseExtends(_FileName,Tokens,SuperClass,Tokens) :- 
+    !,
+    SuperClass = pClass(id('Object'),nil,[],[],"*builtin*",0,0)
+.
 
 
 %%%%%%%%%%%%%%%%
@@ -411,6 +432,7 @@ parseVar(FileName,Tokens,VarList,RestTokens) :-
 parseLocals(FileName,Tokens,Locals,RestTokens) :-
         Tokens = [tKeyw{loc:_,word:let}|TokensAfterLet],
         parseVars(FileName,TokensAfterLet,Locals,TokensAfterVars),
+	!,
 	printf(output,"parseLocals Locals=%w\n..parseLocals TokensAfterVars=%w\n",
 	       [Locals,TokensAfterVars]),
 	TokensAfterVars = [tKeyw{word:in}|RestTokens],
@@ -435,22 +457,26 @@ parseIds(FileName,Tokens,IdList,RestTokens) :-
 %!% MethodList ::= <epsilon> | methods Methods
 %!% Methods    ::= Method | Methods Method
 
-parseMethodsList(FileName, 
-                [tKeyw{word:methods,loc:StartLine}|TokensAfterKMethods],
-                MethodList,RestTokens)
+parseMethodsList(FileName, Tokens, MethodList, RestTokens)
         :-
-	    printf(output,"parseMethodsList TokensAfterKMethods=%w\n",[TokensAfterKMethods]),
-            parseMethods(FileName,TokensAfterKMethods,MethodList,TokensAfterMethods),
-	    printf(output,"parseMethodsList MethodList=%w\n ..parseMethodsList.. TokensAfterMethods=%w\n",
-		   [MethodList,TokensAfterMethods]),
-	    RestTokens = TokensAfterMethods
-        ;
-        ( !, 
-	printf(warning_output,"BOPL failed to parse methods at file %s line %w\n",
-	       [FileName,StartLine]),
-	flush(warning_output),
-	fail 
-         )
+	    Tokens = [tKeyw{word:methods,loc:StartLine}|TokensAfterKMethods],
+	    !,
+	    (
+		printf(output,"parseMethodsList TokensAfterKMethods=%w\n",[TokensAfterKMethods]),
+		parseMethods(FileName,TokensAfterKMethods,MethodList,TokensAfterMethods),
+		!,
+		printf(output,"parseMethodsList MethodList=%w\n ..parseMethodsList.. TokensAfterMethods=%w\n",
+		       [MethodList,TokensAfterMethods]),
+		RestTokens = TokensAfterMethods,
+		!
+		;
+		(
+		  printf(warning_output,"BOPL failed to parse methods at file %s line %w\n",
+			 [FileName,StartLine]),
+		  flush(warning_output)
+		),
+		fail 
+            )
           . 
 
 parseMethodsList(_FileName,Tokens,[],Tokens).
@@ -462,8 +488,9 @@ parseMethods(FileName,Tokens,Methods,RestTokens) :-
     parseMethod(FileName,Tokens,Method1,TokensAfterMethod1),
     printf(output,"parseMethods Method1=%w\n ..parseMethods.. TokensAfterMethod1=%w\n", 
 	   [Method1,TokensAfterMethod1]),
+    !,
         (
-	    TokensAfterMethod1 = [tKeyw{word:end}|_],
+	    TokensAfterMethod1 = [tKeyw{loc:_,word:end}|_],
             Methods = [Method1], RestTokens = TokensAfterMethod1,
 	    !
 	    ;
@@ -472,8 +499,8 @@ parseMethods(FileName,Tokens,Methods,RestTokens) :-
 	    Methods = [Method1|RestMethods],
 	    RestTokens = TokensAfterMethods,
 	    !
-            ;
-            Methods = [Method1], RestTokens = TokensAfterMethod1
+            % ;
+            % Methods = [Method1], RestTokens = TokensAfterMethod1
         )
         .
 

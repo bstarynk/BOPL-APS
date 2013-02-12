@@ -1,0 +1,8 @@
+## ex1emptycl.bopl; a BOPL program with an empty class
+program
+class EmptyClass is
+end
+  ## no locals
+begin
+  return new EmptyClass
+end

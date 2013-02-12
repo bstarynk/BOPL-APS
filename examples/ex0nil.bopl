@@ -1,0 +1,8 @@
+## ex0nil.bopl; one of the smallest BOPL program
+program
+# no classes
+# no locals
+begin
+  return nil
+end
+
