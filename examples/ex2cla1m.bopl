@@ -1,6 +1,6 @@
 ## file ex2cla1m.bopl ; a program with a class with only one method
 program
-  class SoloClass is
+  class SoloClass1m is
   ## no member variables
   methods 
     Int meth () 

@@ -1,0 +1,14 @@
+## file ex4cla1m1v.bopl 
+## a program with a class with 1 member variable & 1 method
+program
+  class SoloClass1m1v is
+  vars Int mvar ;
+  method Int meth(Int d) 
+    begin
+      return self.mvar + d
+    end
+  end
+begin
+  return nil
+end
+

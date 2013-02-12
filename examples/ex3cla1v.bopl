@@ -1,0 +1,10 @@
+## file ex3cla1v.bopl ; a program with a class with only one member variable
+program
+  class SoloClass1v is
+  vars Int mvar ;
+  ## no methods
+  end
+begin
+  return nil
+end
+
