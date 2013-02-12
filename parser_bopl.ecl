@@ -240,7 +240,7 @@ parseProgram(FileName,[Tprog|TokensAfterProg],
     parseToken(Tprog,tKeyw{loc:StartLine,word:program}),
     printf(stdout,"parseProgram TokensAfterProg: %w\n",[TokensAfterProg]),nl,
     parseClassList(FileName,TokensAfterProg,Classes,TokensAfterClassList),
-    printf(stdout,"parseProgram Classes: %w TokensAfterClassList\n",[Classes,TokensAfterClassList]),nl,
+    printf(stdout,"parseProgram Classes: %w TokensAfterClassList= %w\n",[Classes,TokensAfterClassList]),nl,
     parseLocals(FileName,TokensAfterClassList,Vars,TokensAfterLocals), 
     printf(stdout,"parseProgram local Vars: %w  TokensAfterLocals: %w\n",[Vars,TokensAfterLocals]),
     parseSeq(FileName,TokensAfterLocals,SeqInsts,[]),
@@ -404,7 +404,7 @@ parseVar(FileName,Tokens,VarList,RestTokens) :-
 .
 
 parseLocals(FileName,Tokens,Locals,RestTokens) :-
-        Tokens = [tKeyw{loc:_,word:locals}|TokensAfterLet],
+        Tokens = [tKeyw{loc:_,word:let}|TokensAfterLet],
         parseVars(FileName,TokensAfterLet,Locals,
                   [tKeyw{word:in}|RestTokens])
         .
