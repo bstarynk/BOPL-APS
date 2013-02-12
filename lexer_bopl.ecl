@@ -176,7 +176,7 @@ scanToken(IS, C, Lineno, Token, NextC, NextLineno) :-
       ; times(C), !, 
 	Token = tDelim{loc:Lineno,cont:times}, get(IS, NextC), NextLineno = Lineno
       ; plus(C), !, 
-	Token = tDelim{loc:Lineno,cont:times}, get(IS, NextC), NextLineno = Lineno
+	Token = tDelim{loc:Lineno,cont:plus}, get(IS, NextC), NextLineno = Lineno
       ; comma(C), !, 
 	Token = tDelim{loc:Lineno,cont:comma}, get(IS, NextC), NextLineno = Lineno
       ; minus(C), !, 
