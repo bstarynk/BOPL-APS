@@ -524,7 +524,11 @@ parseMethod(FileName,Tokens,Method,RestTokens) :-
 	!,
         ( parseLocals(FileName,TokensAfterRparen,Locals,
                       TokensAfterLocals),
+          printf(output,"parseMethod Locals=%w TokensAfterLocals=%w\n",
+		 [Locals,TokensAfterLocals]),
           parseSeq(FileName,TokensAfterLocals,Seq,RestTokens),
+          printf(output,"parseMethod Seq=%w RestTokens=%w\n",
+		 [Seq,RestTokens]),
           atEnd(Seq,EndLine),
           Method = pMethod{id:Id,formals:Formals,cexp:Cexp,
                            locals:Locals,inst:Seq,
@@ -601,6 +605,7 @@ parseFormal(FileName,Tokens,Formal,RestTokens)
 %!% Seq        ::= begin Insts end
 parseSeq(FileName,Tokens,Seq,RestTokens)
         :-
+	printf(output,"parseSeq start Tokens=%w\n",[Tokens]),
         Tokens = [FirstToken|NextTokens],
         FirstToken = tKeyw{word:begin,loc:FirstLine},
         ( 

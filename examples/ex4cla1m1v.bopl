@@ -3,9 +3,11 @@
 program
   class SoloClass1m1v is
   vars Int mvar ;
-  method Int meth(Int d) 
+  methods
+  Int meth(Int d) 
     begin
-      return self.mvar + d
+      #BAD    return d + (self.mvar)
+      return d
     end
   end
 begin
