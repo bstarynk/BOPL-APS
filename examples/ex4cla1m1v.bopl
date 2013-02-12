@@ -6,8 +6,7 @@ program
   methods
   Int meth(Int d) 
     begin
-      #BAD    return d + (self.mvar)
-      return d
+      return d + (self.mvar)
     end
   end
 begin

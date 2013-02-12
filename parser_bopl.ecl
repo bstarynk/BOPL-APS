@@ -685,8 +685,14 @@ parseInst(FileName,Tokens,Inst,RestTokens)
         :- 
         Tokens = [tKeyw{loc:StartLine,word:return}
                  |TokensAfterReturn],
-        ( parseExp(FileName,TokensAfterReturn,Expr,RestTokens),
-          Inst = pReturn{exp:Expr,file:FileName,line:StartLine}
+        ( 
+	    printf(output,"parsing return ins. Tokens=%w\n", [Tokens]),
+	    parseExp(FileName,TokensAfterReturn,Expr,TokensAfterRetExp),
+	    printf(output,"parsing return ins. Expr=%w TokensAfterRetExp=%w\n",
+		   [Expr,TokensAfterRetExp]),
+            Inst = pReturn{exp:Expr,file:FileName,line:StartLine},
+	    printf(output,"parsed return Inst=%w\n",[Inst]),
+	    RestTokens = TokensAfterRetExp
         ;
           !,
           printf(warning_output,
@@ -801,7 +807,9 @@ parseInst(FileName,Tokens,Inst,RestTokens)
 %!%                + Expr | - Expr | or Expr | <epsilon>
 
 parseExp(FileName,Tokens,Exp,RestTokens) :-
+	printf(output,"parseExp start Tokens=%w\n",[Tokens]),
         parseTerm(FileName,Tokens,Term,TokensAfterTerm),
+	printf(output,"parseExp Term=%w TokensAfterTerm=%w\n",[Term,TokensAfterTerm]),
         parseRestExp(FileName,Term,TokensAfterTerm,Exp,RestTokens)
 .
 
@@ -818,10 +826,12 @@ parseRestExp(FileName,ParExp,[tDelim{cont:dot,loc:StartLine},
         .
 
 parseRestExp(FileName,ParExp,[tDelim{cont:dot,loc:StartLine},
-                              tId{name:Id}|RestTokens],
+                              tId{name:Id}|TokensAfterId],
              Exp,RestTokens) :-
-        !,
-        Exp = pReadField{obj:ParExp,id:Id,file:FileName,line:StartLine}
+    TokensAfterId \= [tDelim(cont:rparen)|_],
+    !,
+    Exp = pReadField{obj:ParExp,id:Id,file:FileName,line:StartLine},
+    RestTokens = TokensAfterId
         .
 
 parseRestExp(FileName,ParExp,[tKeyw{loc:Line,word:instanceof}
@@ -837,9 +847,14 @@ parseRestExp(FileName,ParExp,[tDelim{cont:plus,loc:StartLine}
                              |TokensAfterPlus],
              Exp,RestTokens) :-
         !,
-        parseExp(FileName,TokensAfterPlus,Term,RestTokens),
+	printf(output,"parseRestExp plus ParExp=%w TokensAfterPlus=%w\n",
+	       [ParExp, TokensAfterPlus]),
+        parseExp(FileName,TokensAfterPlus,Term,TokensAfterTerm),
         Exp = pPlus(left:ParExp,right:Term,
-                    file:FileName,line:StartLine)
+                    file:FileName,line:StartLine),
+	printf(output,"parseRestExp plus Exp=%w TokensAfterTerm=%w\n",
+	       [ParExp, TokensAfterPlus]),
+	RestTokens = TokensAfterTerm
         .
 
 parseRestExp(FileName,ParExp,[tDelim{cont:minus,loc:StartLine}
@@ -980,6 +995,14 @@ parseBasic(FileName,Tokens,Basic,RestTokens)
         Basic = pSuper{file:FileName, line:Line}
         .
 
+
+parseBasic(FileName,Tokens,Basic,RestTokens)
+        :- 
+        Tokens = [tDelim{loc:_Line,cont:lparen}|TokensAfterLparen],
+	parseExp(FileName,TokensAfterLparen,Exp,TokensAfterExp),
+	TokensAfterExp = [tDelim{loc:_,cont:rparen}|RestTokens],
+	Basic = Exp
+	.
            
 %!% ActualList ::= epsilon | Actuals
 %!% Actuals    ::= Exp | Actuals , Exp
