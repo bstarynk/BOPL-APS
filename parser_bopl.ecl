@@ -813,6 +813,13 @@ parseExp(FileName,Tokens,Exp,RestTokens) :-
         parseRestExp(FileName,Term,TokensAfterTerm,Exp,RestTokens)
 .
 
+%%% for debugging, parse a string as a Exp
+:- export parStrExp/2.
+parStrExp(String,AST) :-
+    scanString(String,Tokens),
+    printf(output,"parStrExp Tokens=%w\n",[Tokens]), !,
+    parseExp("*string*",Tokens,AST,[]), !.
+
 parseRestExp(FileName,ParExp,[tDelim{cont:dot,loc:StartLine},
                               tId{name:Id},tDelim(cont:lparen)
                              |TokensAfterLparen],
