@@ -25,7 +25,7 @@
 :- module(lexer_bopl).
 
 :- use_module(library(pretty_print)).
-:- export scanFile/2,scan/2,lexWith/2,lexDelim/2,lexKeyw/2,lexId/2,lexNum/2,lexAt/2.
+:- export scanFile/2,scan/2,scanString/2,lexWith/2,lexDelim/2,lexKeyw/2,lexId/2,lexNum/2,lexAt/2.
 
 
 %% scanFile(+FileName, -Tokens)
@@ -37,13 +37,23 @@ scanFile(FileName, Tokens) :-
 scan(FileName, Tokens) :-
   open(FileName, read, IS),
   get(IS, Char),
-  (scanTokens(IS, Char, 1, Tokens, NbLines);(!,printf(warning_output, "BOPL failed to lex file %s\n",[FileName]),fail)),
+  (scanTokens(IS, Char, 1, Tokens, NbLines);
+   (!,printf(warning_output, "BOPL failed to lex file %s\n",[FileName]),fail)),
   length(Tokens, NbTokens),
   !,
   printf(output,"BOPL lexed file %s of %d lines and %d tokens\n", [FileName, NbLines, NbTokens]),
-  pretty_print:pretty_print(stdout, "\n", 80),
   close(IS).
 
+
+scanString(String,Tokens) :-
+  open(string(String), read, IS),
+  get(IS, Char),
+  (scanTokens(IS, Char, 1, Tokens, NbLines);
+   (!,printf(warning_output, "BOPL failed to lex string %w\n",[String]),fail)),
+  length(Tokens, NbTokens),
+  !,
+  printf(output,"BOPL lexed string %s of %d lines and %d tokens\n", [String, NbLines, NbTokens]),
+  close(IS).
 
 %% we use the structure notation for tokens, because we want to carry
 %% the line location of each lexical token.  See chapter 4 of the
