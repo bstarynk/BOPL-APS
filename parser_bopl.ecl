@@ -664,7 +664,7 @@ parseInst(FileName,Tokens,Inst,RestToken)
 parseInst(FileName,Tokens,Inst,RestTokens)
         :-
         parseExp(FileName,Tokens,ExpObj,TokensAfterExp1),
-        TokensAfterExp1 = [tDelim{loc:DotLine,cont:dot},
+        TokensAfterExp1 = [tDelim{loc:DotLine,cont:period},
                            tId{name:IdField},
                            tDelim{cont:assign}
                           |TokensAfterAssign],
@@ -820,7 +820,7 @@ parStrExp(String,AST) :-
     printf(output,"parStrExp Tokens=%w\n",[Tokens]), !,
     parseExp("*string*",Tokens,AST,[]), !.
 
-parseRestExp(FileName,ParExp,[tDelim{cont:dot,loc:StartLine},
+parseRestExp(FileName,ParExp,[tDelim{cont:period,loc:StartLine},
                               tId{name:Id},tDelim(cont:lparen)
                              |TokensAfterLparen],
              Exp,RestTokens) :-
@@ -832,7 +832,7 @@ parseRestExp(FileName,ParExp,[tDelim{cont:dot,loc:StartLine},
                           line:StartLine}
         .
 
-parseRestExp(FileName,ParExp,[tDelim{cont:dot,loc:StartLine},
+parseRestExp(FileName,ParExp,[tDelim{cont:period,loc:StartLine},
                               tId{name:Id}|TokensAfterId],
              Exp,RestTokens) :-
     TokensAfterId \= [tDelim(cont:rparen)|_],
