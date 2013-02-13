@@ -711,7 +711,7 @@ parseInst(FileName,Tokens,Inst,RestTokens)
         ; !, 
           printf(warning_output,
                  "BOPL failed to parse assignment instruction at"
-                 " file %s line %d", [FileName,FirstLine]),
+                 " file %s line %d\n", [FileName,FirstLine]),
           flush(warning_output),
           fail)
         .
@@ -735,7 +735,7 @@ parseInst(FileName,Tokens,Inst,RestTokens)
         ; !,
           printf(warning_output,
                  "BOPL failed to parse write field instruction at"
-                 " file %s line %d", [FileName,DotLine]),
+                 " file %s line %d\n", [FileName,AssignLine]),
           flush(warning_output),
           fail)
         .
