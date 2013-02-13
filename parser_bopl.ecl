@@ -37,7 +37,7 @@ dbgprintf(Name,Fmt,Args) :-
 	-> printf(output, "*| %a ",[Name]), printf(output, Fmt, Args), nl, !
         ; true, !
 .
-debugWanted([]).
+
 debugName(parseProgram).
 debugName(parseClassList).
 debugName(parseClass).
@@ -59,10 +59,12 @@ debugName(parseRestFact).
 
 
 enableDebug(X) :- debugName(X), assert(debugWanted(X)).
-enableDebug(all) :- repeat, debugName(X),   assert(debugWanted(X)), !.
+enableDebug(all) :- 
+    findall(X,debugName(X),Z), !, (foreach(F,Z) do printf(output,"debugWanted %w\n",F),assert(debugWanted(F))).
 
 disableDebug(X) :- debugName(X), retract(debugWanted(X)).
-disableDebug(all) :- repeat, debugName(X),   retract(debugWanted(X)), !.
+disableDebug(all) :- 
+    findall(X,debugName(X),Z), !, (foreach(F,Z) do retract(debugWanted(F))).
 
 %**1***************************************************************************
 % Concrete grammar [lowercase are terminals]
@@ -637,16 +639,15 @@ parseFormal(FileName,Tokens,Formal,RestTokens)
 %!% Seq        ::= begin Insts end
 parseSeq(FileName,Tokens,Seq,RestTokens)
         :-
-	dbgprintf(parseSeq," start Tokens=%w\n",[Tokens]),
+	dbgprintf(parseSeq," start Tokens=%w",[Tokens]),
         Tokens = [FirstToken|NextTokens],
         FirstToken = tKeyw{word:begin,loc:FirstLine},
         ( 
           parseInsts(FileName,NextTokens,Insts,TokensAfterInst),
+	  dbgprintf(parseSeq,"Insts=%w TokensAfterInst=%w",[Insts,TokensAfterInst]),
           TokensAfterInst = [tKeyw{word:end,loc:_EndLine}|RestTokens],
           Seq = Insts,
-          print(stdout,"parsed Seq");
-          pretty_print(stdout,Seq,80),
-          flush(stdout)
+	  dbgprintf(parseSeq," Seq=%w RestTokens=%w",[Seq,RestTokens])
           ;
           ( !, lexAt(FirstToken,FirstLine),
             printf(warning_output,
@@ -656,6 +657,16 @@ parseSeq(FileName,Tokens,Seq,RestTokens)
             fail )
         )
         .
+
+
+%%% for debugging, parse a string as a Seq
+:- export parStrSeq/2.
+parStrSeq(String,AST) :-
+    scanString(String,Tokens),
+    printf(output,"parStrSeq Tokens=%w\n",[Tokens]), !,
+    parseSeq("*string*",Tokens,AST,[]), !
+.
+
 
 parseInsts(FileName,Tokens,Insts,RestTokens) :-
         parseInst(FileName,Tokens,InstLeft,TokensAfterLeft),
