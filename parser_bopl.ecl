@@ -892,21 +892,25 @@ parStrExp(String,AST) :-
     parseExp("*string*",Tokens,AST,[]), !.
 
 parseRestExp(FileName,ParExp,[tDelim{cont:period,loc:StartLine},
-                              tId{name:Id},tDelim(cont:lparen)
+                              tId{name:Id},tDelim{cont:lparen}
                              |TokensAfterLparen],
              Exp,RestTokens) :-
         !,
+	dbgprintf(parseRestExp, "methodcall ParExp=%w TokensAfterLparen=%w",[ParExp,TokensAfterLparen]),
         parseActualList(FileName,TokensAfterLparen,Args,
                         TokensAfterArgs),
-        TokensAfterArgs=[tDelim(cont:rparen)|RestTokens],
+	dbgprintf(parseRestExp, "methodcall Args=%w TokensAfterArgs=%w",[Args,TokensAfterArgs]),
+        TokensAfterArgs=[tDelim{cont:rparen}|TokensAfterRparen],
         Exp = pMethodCall{recv:ParExp,id:Id,args:Args,file:FileName,
-                          line:StartLine}
+                          line:StartLine},
+	dbgprintf(parseRestExp, "methodcall Exp=%w TokensAfterRparen=%w",[Exp,TokensAfterRparen]),
+	RestTokens = TokensAfterRparen
         .
 
 parseRestExp(FileName,ParExp,[tDelim{cont:period,loc:StartLine},
                               tId{name:Id}|TokensAfterId],
              Exp,RestTokens) :-
-    TokensAfterId \= [tDelim(cont:rparen)|_],
+    TokensAfterId \= [tDelim(cont:lparen)|_],
     !,
     Exp = pReadField{obj:ParExp,id:Id,file:FileName,line:StartLine},
     RestTokens = TokensAfterId
