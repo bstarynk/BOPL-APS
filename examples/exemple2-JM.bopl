@@ -1,0 +1,62 @@
+## file exemple2-JM.bopl from J.Malenfant
+
+program
+  class Paire is
+  vars
+    Int x, y ;
+  methods
+    Int getX(Int a)
+    begin
+      if (self.x) < 0 or (self.x) = 0 then
+        begin
+          return a
+        end
+      else
+        begin
+          return self.x
+        end
+    end
+    Int getY()
+    begin
+      return self.y
+    end
+  end
+  class Triplet extends Paire is
+  vars
+    Int z ;
+  methods
+    Int getX(Int a)
+    begin
+      while not a < 0 do
+        begin
+          self.x := (self.x) * 2 ;
+          a := a - 1
+        end ;
+      return self.x
+    end
+    Int getZ()
+    begin
+      return self.z
+    end
+  end
+let
+  Paire p ;
+  Triplet t ;
+in
+begin
+  p := new Paire ;
+  writeln(p instanceof Paire) ;
+  p.x := 0 ;
+  p.y := 2 ;
+  writeln(p.getX(100)) ;
+  writeln(p.getY()) ;
+  t := new Triplet ;
+  writeln(t instanceof Triplet) ;
+  writeln(t instanceof Paire) ;
+  t.x := 10 ;
+  t.y := 20 ;
+  t.z := 30 ;
+  writeln(t.getX(5)) ;
+  writeln(t.getY()) ;
+  writeln(t.getZ())
+end

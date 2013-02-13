@@ -1,0 +1,112 @@
+## file exemple3-JM.bopl from J.Malenfant
+
+program
+  class Couleur is
+  vars
+    Int c ;
+  methods
+    Int getC()
+    begin
+      return self.c
+    end
+  end
+
+  class Point is
+  vars
+    Int x, y ;
+  methods
+    Int getX()
+    begin
+      return self.x
+    end
+    Int getY()
+    begin
+      return self.y
+    end
+  end
+
+  class Point3D extends Point is
+  vars
+    Int z ;
+  methods
+    Int getZ()
+    begin
+      return self.z
+    end
+  end
+
+  class PointColore extends Point is
+  vars
+    Couleur c ;
+  methods
+    Couleur getCouleur()
+    begin
+      return self.c
+    end
+  end
+
+  class Ligne is
+  vars
+    Point p1, p2 ;
+  methods
+    Point getP1()
+    begin
+      return self.p1
+    end
+    Point getP2()
+    begin
+      return self.p2
+    end
+  end
+
+let
+  Point p1, p2 ;
+  Couleur c ;
+  Ligne l1, l2, l3 ;
+in
+begin
+  l1 := new Ligne ;
+  p1 := new Point ;
+  p1.x := 0 ;
+  p1.y := 0 ;
+  p2 := new Point ;
+  p2.x := 10 ;
+  p2.y := 5 ;
+  l1.p1 := p1 ;
+  l1.p2 := p2 ;
+  writeln(p1) ;
+  writeln(p2) ;
+  writeln(l1) ;
+
+  l2 := new Ligne ;
+  p1 := new Point3D ;
+  p1.x := 0 ;
+  p1.y := 0 ;
+  p1.z := 0 ;
+  p2 := new Point3D ;
+  p2.x := 10 ;
+  p2.y := 5 ;
+  p2.z := 20 ;
+  l2.p1 := p1 ;
+  l2.p2 := p2 ;
+  writeln(p1) ;
+  writeln(p2) ;
+  writeln(l2) ;
+
+  l3 := new Ligne ;
+  p1 := new PointColore ;
+  p1.x := 0 ;
+  p1.y := 0 ;
+  c := new Couleur ;
+  c.c := 0 ;
+  p1.c := c ;
+  p2 := new PointColore ;
+  p2.x := 10 ;
+  p2.y := 5 ;
+  c := new Couleur ;
+  c.c := 1 ;
+  p2.c := c ;
+  l3.p1 := p1 ;
+  l3.p2 := p2 ;
+  writeln(l3)
+end
