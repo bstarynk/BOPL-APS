@@ -890,12 +890,15 @@ parseRestExp(_,ParentExp,Tokens,ParentExp,Tokens).
 %!% RestTerm   ::= * Fact | and Fact | <epsilon>
 
 parseTerm(FileName,Tokens,Term,RestTokens) :-
+	printf(output,"parseTerm Tokens=%w\n", [Tokens]),
         parseFact(FileName,Tokens,Fact,TokensAfterFact),
+	printf(output,"parseTerm Fact=%w TokensAfterFact=%w\n", 
+               [Fact,TokensAfterFact]),
         parseRestTerm(FileName,Fact,TokensAfterFact,Term,RestTokens)
 .
 
 parseRestTerm(FileName,ParTerm,
-              [tDelim{cont:mult,loc:StartLine}
+              [tDelim{cont:times,loc:StartLine}
               |TokensAfterMult],
               Term,RestTokens)
         :-
@@ -924,6 +927,7 @@ parseRestTerm(_,ParTerm,RestTokens,ParTerm,RestTokens).
 %!%     RestFact := = Fact | < Fact | <epsilon>
 
 parseFact(FileName,Tokens,Fact,RestTokens) :-
+	printf(output,"parseFact Tokens=%w\n", [Tokens]),
         parseBasic(FileName,Tokens,Basic,TokensAfterBasic),
         parseRestFact(FileName,Basic,TokensAfterBasic,Fact,RestTokens)
 .
