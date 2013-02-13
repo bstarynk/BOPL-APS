@@ -28,7 +28,9 @@
 :- use_module(library(pretty_print)).
 :- use_module(lexer_bopl).
 
-:- export parseFile/2, parse/3, dbgprintf/3, debugName/1, debugWanted/1.
+
+:- dynamic debugWanted/1.
+:- export parseFile/2, parse/3, dbgprintf/3, debugName/1, debugWanted/1, enableDebug/1, disableDebug/1.
 
 dbgprintf(Name,Fmt,Args) :- 
         debugWanted(Name), atom(Name) 
@@ -47,8 +49,22 @@ debugName(parseMethod).
 debugName(parseFormals).
 debugName(parseFormal).
 debugName(parseSeq).
+debugName(parseInst).
+debugName(parseExp).
+debugName(parseRestExp).
+debugName(parseTerm).
+debugName(parseRestTerm).
+debugName(parseFact).
+debugName(parseRestFact).
 
-%*****************************************************************************
+
+enableDebug(X) :- debugName(X), assert(debugWanted(X)).
+enableDebug(all) :- repeat, debugName(X),   assert(debugWanted(X)), !.
+
+disableDebug(X) :- debugName(X), retract(debugWanted(X)).
+disableDebug(all) :- repeat, debugName(X),   retract(debugWanted(X)), !.
+
+%**1***************************************************************************
 % Concrete grammar [lowercase are terminals]
 %
 % Program    ::= program ClassList Locals Seq
@@ -702,12 +718,12 @@ parseInst(FileName,Tokens,Inst,RestTokens)
         Tokens = [tKeyw{loc:StartLine,word:return}
                  |TokensAfterReturn],
         ( 
-	    printf(output,"parsing return ins. Tokens=%w\n", [Tokens]),
+	    dbgprintf(parseInst," return ins. Tokens=%w", [Tokens]),
 	    parseExp(FileName,TokensAfterReturn,Expr,TokensAfterRetExp),
-	    printf(output,"parsing return ins. Expr=%w TokensAfterRetExp=%w\n",
+	    dbgprintf(parseInst,"parsing return ins. Expr=%w TokensAfterRetExp=%w",
 		   [Expr,TokensAfterRetExp]),
             Inst = pReturn{exp:Expr,file:FileName,line:StartLine},
-	    printf(output,"parsed return Inst=%w\n",[Inst]),
+	    dbgprintf(parseInst,"parsed return Inst=%w",[Inst]),
 	    RestTokens = TokensAfterRetExp
         ;
           !,
@@ -823,9 +839,9 @@ parseInst(FileName,Tokens,Inst,RestTokens)
 %!%                + Expr | - Expr | or Expr | <epsilon>
 
 parseExp(FileName,Tokens,Exp,RestTokens) :-
-	printf(output,"parseExp start Tokens=%w\n",[Tokens]),
+	dbgprintf(parseExp, "start Tokens=%w\n",[Tokens]),
         parseTerm(FileName,Tokens,Term,TokensAfterTerm),
-	printf(output,"parseExp Term=%w TokensAfterTerm=%w\n",[Term,TokensAfterTerm]),
+	dbgprintf(parseExp, "Term=%w TokensAfterTerm=%w",[Term,TokensAfterTerm]),
         parseRestExp(FileName,Term,TokensAfterTerm,Exp,RestTokens)
 .
 
@@ -870,12 +886,12 @@ parseRestExp(FileName,ParExp,[tDelim{cont:plus,loc:StartLine}
                              |TokensAfterPlus],
              Exp,RestTokens) :-
         !,
-	printf(output,"parseRestExp plus ParExp=%w TokensAfterPlus=%w\n",
+	dbgprintf(parseRestExp," plus ParExp=%w TokensAfterPlus=%w",
 	       [ParExp, TokensAfterPlus]),
         parseExp(FileName,TokensAfterPlus,Term,TokensAfterTerm),
         Exp = pPlus(left:ParExp,right:Term,
                     file:FileName,line:StartLine),
-	printf(output,"parseRestExp plus Exp=%w TokensAfterTerm=%w\n",
+	dbgprintf(parseRestExp, "plus Exp=%w TokensAfterTerm=%w",
 	       [ParExp, TokensAfterPlus]),
 	RestTokens = TokensAfterTerm
         .
@@ -906,9 +922,9 @@ parseRestExp(_,ParentExp,Tokens,ParentExp,Tokens).
 %!% RestTerm   ::= * Fact | and Fact | <epsilon>
 
 parseTerm(FileName,Tokens,Term,RestTokens) :-
-	printf(output,"parseTerm Tokens=%w\n", [Tokens]),
+	dbgprintf(parseTerm, "Tokens=%w\n", [Tokens]),
         parseFact(FileName,Tokens,Fact,TokensAfterFact),
-	printf(output,"parseTerm Fact=%w TokensAfterFact=%w\n", 
+	dbgprintf(parseTerm, "Fact=%w TokensAfterFact=%w", 
                [Fact,TokensAfterFact]),
         parseRestTerm(FileName,Fact,TokensAfterFact,Term,RestTokens)
 .
@@ -943,7 +959,7 @@ parseRestTerm(_,ParTerm,RestTokens,ParTerm,RestTokens).
 %!%     RestFact := = Fact | < Fact | <epsilon>
 
 parseFact(FileName,Tokens,Fact,RestTokens) :-
-	printf(output,"parseFact Tokens=%w\n", [Tokens]),
+	dbgprintf(parseFact,"parseFact Tokens=%w\n", [Tokens]),
         parseBasic(FileName,Tokens,Basic,TokensAfterBasic),
         parseRestFact(FileName,Basic,TokensAfterBasic,Fact,RestTokens)
 .
@@ -1053,4 +1069,3 @@ parseActuals(FileName,Tokens,Actuals,RestTokens) :-
           Actuals = [Exp]
         )
         .
-%% incomplete
