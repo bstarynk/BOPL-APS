@@ -699,13 +699,15 @@ parStrInst(String,AST) :-
 %!%                writeln ( Exp )
 
 %%% assignment instruction: id := Exp
-parseInst(FileName,Tokens,Inst,RestToken)
+parseInst(FileName,Tokens,Inst,RestTokens)
         :- 
         Tokens = [tId{loc:FirstLine,name:Id},
                   tDelim{cont:assign}
                  |TokensAfterAssign],
-        ( parseExp(FileName,TokensAfterAssign,Exp,RestToken),
-          Inst = pAssign{id:Id,exp:Exp,file:FileName,line:FirstLine}
+        ( parseExp(FileName,TokensAfterAssign,Exp,TokensAfterAssExp),
+          Inst = pAssign{id:Id,exp:Exp,file:FileName,line:FirstLine},
+	  dbgprintf(parseInst,"assign Inst=%w TokensAfterAssExp=%w", [Inst,TokensAfterAssExp]),
+	  RestTokens = TokensAfterAssExp
         ; !, 
           printf(warning_output,
                  "BOPL failed to parse assignment instruction at"
@@ -717,14 +719,19 @@ parseInst(FileName,Tokens,Inst,RestToken)
 %%% writefield instruction: Exp . id := Exp
 parseInst(FileName,Tokens,Inst,RestTokens)
         :-
-        parseExp(FileName,Tokens,ExpObj,TokensAfterExp1),
-        TokensAfterExp1 = [tDelim{loc:DotLine,cont:period},
-                           tId{name:IdField},
-                           tDelim{cont:assign}
-                          |TokensAfterAssign],
-        ( parseExp(FileName,TokensAfterAssign,ExpField,RestTokens),
-          Inst = pWriteField{obj:ExpObj,id:IdField,val:ExpField,
-                             file:FileName,line:DotLine}
+	    %% trick, the parsed expression is Exp.id and we recognize it as a field access
+        parseExp(FileName,Tokens,ExpField,TokensAfterExp1),
+	TokensAfterExp1 = [tDelim{cont:assign,loc:AssignLine}|TokensAfterAssign],
+	dbgprintf(parseInst,"writeField ExpField=%w TokensAfterExp1=%w",[ExpField,TokensAfterExp1]),
+	ExpField = pReadField{obj:ExpObj,id:IdField},
+	!,
+	dbgprintf(parseInst,"writeField ExpObj=%w TokensAfterAssign=%w", [ExpObj,TokensAfterAssign]),
+        ( parseExp(FileName,TokensAfterAssign,ExpData,TokensAfterExpData),
+	  dbgprintf(parseInst,"writeField ExpData=%w TokensAfterExpData=%w",[ExpData,TokensAfterExpData]),
+          Inst = pWriteField{obj:ExpObj,id:IdField,val:ExpData,
+                             file:FileName,line:AssignLine},
+	  dbgprintf(parseInst,"writeField Inst=%w TokensAfterExpData=%w", [Inst,TokensAfterExpData]),
+	  RestTokens = TokensAfterExpData
         ; !,
           printf(warning_output,
                  "BOPL failed to parse write field instruction at"
@@ -763,11 +770,14 @@ parseInst(FileName,Tokens,Inst,RestTokens)
                  |TokensAfterIf],
         ( parseExp(FileName,TokensAfterIf,ExprCond,
                     TokensAfterCond),
+	  dbgprintf(parseInst,"parse if ExprCond=%w TokensAfterCond=%w",[ExprCond,TokensAfterCond]),
           TokensAfterCond = [tKeyw{loc:ThenLine,word:then}
                             |TokensAfterThen],
           (
               parseSeq(FileName,TokensAfterThen,SeqThen,
-                       TokensAfterThenSeq)
+                       TokensAfterThenSeq),
+	      !,
+	      dbgprintf(parseInst,"parse if SeqThen=%w TokensAfterThenSeq=%w", [SeqThen,TokensAfterThenSeq])
           ; !,
             printf(warning_output,
                    "BOPL failed to parse then sequence at"
@@ -778,7 +788,9 @@ parseInst(FileName,Tokens,Inst,RestTokens)
                                |TokensAfterElse],
           (
               parseSeq(FileName,TokensAfterElse,SeqElse,
-                       TokensAfterElseSeq)
+                       TokensAfterElseSeq),
+	      !,
+	      dbgprintf(parseInst,"parse if SeqElse=%w TokensAfterElseSeq=%w",[SeqElse,TokensAfterElseSeq])
           ; !,
             printf(warning_output,
                    "BOPL failed to parse else sequence at"
@@ -786,9 +798,10 @@ parseInst(FileName,Tokens,Inst,RestTokens)
             flush(warning_output),
             fail),
           atEnd(SeqElse,EndLine),
-          TokensAfterElseSeq = RestTokens,
           Inst = pIf{exp:ExprCond,seqthen:SeqThen,seqelse:SeqElse,
-                     file:FileName,start:StartLine,end:EndLine}
+                     file:FileName,start:StartLine,end:EndLine},
+	  dbgprintf(parseInst,"parse if Inst=%w",[Inst]),
+          TokensAfterElseSeq = RestTokens
         ; !,
           printf(warning_output, 
                  "BOPL failed to parse if instruction at file %s line"
@@ -805,7 +818,8 @@ parseInst(FileName,Tokens,Inst,RestTokens)
                  |TokensAfterWhile],
         (
             (parseExp(FileName,TokensAfterWhile,ExprCond,
-                       TokensAfterCond)
+                       TokensAfterCond),
+	     dbgprintf(parseInst,"parse while ExprCond=%w TokensAfterCond=%w",[ExprCond,TokensAfterCond])
             ; !, 
               printf(warning_output, 
                      "BOPL failed to parse while expression at file %s line"
@@ -815,8 +829,9 @@ parseInst(FileName,Tokens,Inst,RestTokens)
               fail),
             TokensAfterCond = [tKeyw{loc:DoLine,word:do}
                               | TokensAfterDo],
-            (parseSeq(FileName,TokensAfterDo,SeqDo,
-                      RestTokens)
+            (parseSeq(FileName,TokensAfterDo,SeqDo,TokensAfterSeq),
+	     dbgprintf(parseInst,"parse while SeqDo=%w TokensAfterSeq=%w", [SeqDo,TokensAfterSeq]),
+	     !
             ; !,
               printf(warning_output, 
                      "BOPL failed to parse do sequence at file %s line"
@@ -826,7 +841,9 @@ parseInst(FileName,Tokens,Inst,RestTokens)
               fail),
             atEnd(SeqDo,EndLine),
             Inst = pWhile{exp:ExprCond,seqdo:SeqDo,
-                          file:FileName,start:StartLine,end:EndLine}
+                          file:FileName,start:StartLine,end:EndLine},
+	    dbgprintf(parseInst,"parse while Inst=%w", [Inst]),
+	    RestTokens = TokensAfterSeq
         )    
         .
 
