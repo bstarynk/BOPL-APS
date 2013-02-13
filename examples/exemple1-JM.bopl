@@ -1,0 +1,31 @@
+## file exemple1-JM.bopl
+# l'exemple 1 de J.Malenfant
+program
+  class Point is
+  vars
+     Int x, y ;
+  methods
+    Point add(Point p)
+    let
+      Point ret ;
+    in
+    begin
+      ret := new Point ;
+      ret.x := (self.x) + (p.x) ;
+      ret.y := (self.y) + (p.y) ;
+      return ret
+    end
+  end
+let
+  Point p1, p2, p3 ;
+in
+begin
+  p1 := new Point ;
+  p1.x := 1 ;
+  p1.y := 2 ;
+  p2 := new Point ;
+  p2.x := 5 ;
+  p2.y := 10 ;
+  p3 := p1.add(p2) ;
+  writeln(p3)
+end
