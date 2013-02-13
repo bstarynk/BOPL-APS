@@ -683,6 +683,17 @@ parseInsts(FileName,Tokens,Insts,RestTokens) :-
         )
 .
 
+
+
+
+%%% for debugging, parse a string as a Inst
+:- export parStrInst/2.
+parStrInst(String,AST) :-
+    scanString(String,Tokens),
+    printf(output,"parStrInst Tokens=%w\n",[Tokens]), !,
+    parseInst("*string*",Tokens,AST,[]), !
+.
+
 %!% Inst       ::= id := Exp | Exp . id := Exp | return Exp |
 %!%                if Exp then Seq else Seq | while Exp do Seq |
 %!%                writeln ( Exp )
