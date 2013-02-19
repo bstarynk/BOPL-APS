@@ -30,13 +30,29 @@
 
 
 :- dynamic debugWanted/1.
-:- export parseFile/2, parse/2, dbgprintf/3, debugName/1, debugWanted/1, enableDebug/1, disableDebug/1.
+:- export parseFile/2, parse/2, dbgprintf/3, dbgprintfat/5, debugName/1, debugWanted/1, enableDebug/1, disableDebug/1.
 
-dbgprintf(Name,Fmt,Args) :- 
-        debugWanted(Name), atom(Name) 
-	-> printf(output, "*| %a ",[Name]), printf(output, Fmt, Args), nl, !
+dbgprintfat(Name,Fmt,Args,SrcFile,SrcLine) :- 
+        debugWanted(Name), atom(Name), string(SrcFile), number(SrcLine)
+	-> printf(output, "*| %s:%d: %a ",[SrcFile,SrcLine,Name]), 
+	   printf(output, Fmt, Args), nl, !
         ; true, !
 .
+
+%% weird trick by Joachim Schimpf
+%% http://sourceforge.net/mailarchive/forum.php?thread_name=511BF3E0.6010805%40coninfer.com&forum_name=eclipse-clp-users
+
+% Compile-time substitution of dbgprintf/3 with dbgprintfat/5
+:- inline(dbgprintf/3, expand_dbgprintf/4).
+
+expand_dbgprintf(dbgprintf(Name,Fmt,Args), dbgprintfat(Name,Fmt,Args,File,Line),
+             OldAnnGoal, _NewAnnGoal) :-
+         ( var(OldAnnGoal) ->
+             File = 'unknown', Line=0
+         ;
+             % get source position from the annotated source term
+             OldAnnGoal = annotated_term{file:File,line:Line}
+         ).
 
 debugName(parseProgram).
 debugName(parseClassList).
