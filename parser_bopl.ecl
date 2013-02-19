@@ -1,4 +1,4 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%% The BOPL parser; file parser_bopl.ecl
+<%%%%%%%%%%%%%%%%%%%%%%%%%%% The BOPL parser; file parser_bopl.ecl
 %%%%% for APS lecture MI030 "Analyse des programmes et sémantique"
 %%%%% course by http://pagesperso-systeme.lip6.fr/Jacques.Malenfant/
 
@@ -30,29 +30,42 @@
 
 
 :- dynamic debugWanted/1.
-:- export parseFile/2, parse/2, dbgprintf/3, dbgprintfat/5, debugName/1, debugWanted/1, enableDebug/1, disableDebug/1.
+:- export parseFile/2, parse/2, dbgprintf/3, debugName/1, debugWanted/1, enableDebug/1, disableDebug/1.
 
-dbgprintfat(Name,Fmt,Args,SrcFile,SrcLine) :- 
-        debugWanted(Name), atom(Name), string(SrcFile), number(SrcLine)
-	-> printf(output, "*| %s:%d: %a ",[SrcFile,SrcLine,Name]), 
-	   printf(output, Fmt, Args), nl, !
+
+%================================================================
+%- %% weird trick by Joachim Schimpf does not work well. The Args is transformed to [Args]...
+%%
+%- %% http://sourceforge.net/mailarchive/forum.php?thread_name=511BF3E0.6010805%40coninfer.com&forum_name=eclipse-clp-users
+%- 
+%- export dbgprintfat/5.
+%- dbgprintfat(Name,Fmt,Args,SrcFile,SrcLine) :- 
+%-         debugWanted(Name), atom(Name), string(SrcFile), number(SrcLine)
+%- 	-> printf(output, "*| %s:%d: %a ",[SrcFile,SrcLine,Name]), 
+%- 	   printf(output, Fmt, Args), nl, !
+%-         ; true, !
+%- .
+%- 
+%- % Compile-time substitution of dbgprintf/3 with dbgprintfat/5
+%- :- inline(dbgprintf/3, expand_dbgprintf/4).
+%- 
+%- expand_dbgprintf(dbgprintf(Name,Fmt,Args), dbgprintfat(Name,Fmt,Args,File,Line),
+%-              OldAnnGoal, _NewAnnGoal) :-
+%-          ( var(OldAnnGoal) ->
+%-              File = 'unknown', Line=0
+%-          ;
+%-              % get source position from the annotated source term
+%-              OldAnnGoal = annotated_term{file:File,line:Line}
+%-          ).
+%================================================================
+
+
+%% my old dbgprintf works...
+dbgprintf(Name,Fmt,Args) :-
+        debugWanted(Name), atom(Name)
+-> printf(output, "*| %a ",[Name]), printf(output, Fmt, Args), nl, !
         ; true, !
 .
-
-%% weird trick by Joachim Schimpf
-%% http://sourceforge.net/mailarchive/forum.php?thread_name=511BF3E0.6010805%40coninfer.com&forum_name=eclipse-clp-users
-
-% Compile-time substitution of dbgprintf/3 with dbgprintfat/5
-:- inline(dbgprintf/3, expand_dbgprintf/4).
-
-expand_dbgprintf(dbgprintf(Name,Fmt,Args), dbgprintfat(Name,Fmt,Args,File,Line),
-             OldAnnGoal, _NewAnnGoal) :-
-         ( var(OldAnnGoal) ->
-             File = 'unknown', Line=0
-         ;
-             % get source position from the annotated source term
-             OldAnnGoal = annotated_term{file:File,line:Line}
-         ).
 
 debugName(parseProgram).
 debugName(parseClassList).
@@ -298,7 +311,7 @@ parseProgram([Tprog|TokensAfterProg],
     dbgprintf(parseProgram,"parseProgram local Vars: %w\n..parseProgram  TokensAfterLocals: %w",[Vars,TokensAfterLocals]),
     !,
     parseSeq(TokensAfterLocals,SeqInsts,[]),
-    dbgprintf(parseProgram," SeqInsts %w",[SeqInsts]),
+    dbgprintf(parseProgram,"SeqInsts %w",[SeqInsts]),
     atEnd(SeqInsts,EndLine),
     !,
     Program = pProgram{clas:Classes,vars:Vars,insts:SeqInsts,
@@ -459,7 +472,6 @@ parseVars(Tokens,AllVars,RestTokens) :-
 
 %!% Var        ::= Classexp Ids ;
 parseVar(Tokens,VarList,RestTokens) :-
-        nonvar(FileName),
         parseClassExp(Tokens,Cexp,TokensAfterCexp),
         atLine(Cexp,Line),
         !,
@@ -489,7 +501,7 @@ parseLocals(Tokens,Locals,RestTokens) :-
 	!
         .
 
-parseLocals(_,Tokens,[],Tokens).
+parseLocals(Tokens,[],Tokens).
 
  
 % Ids        ::= id | Ids , id
@@ -534,7 +546,7 @@ parseMethodsList(Tokens,[],Tokens).
 %%% notice that the last Method of a MethodsList or of Methods is
 %%% followed by the 'end' of the containing class
 parseMethods(Tokens,Methods,RestTokens) :-
-    dbgprintf(parseMethods,"Tokens=%w", [Tokens]),
+    dbgprintf(parseMethods,"start Tokens=%w", [Tokens]),
     parseMethod(Tokens,Method1,TokensAfterMethod1),
     dbgprintf(parseMethods,"Method1=%w\n ..parseMethods.. TokensAfterMethod1=%w", 
 	   [Method1,TokensAfterMethod1]),
@@ -544,8 +556,12 @@ parseMethods(Tokens,Methods,RestTokens) :-
             Methods = [Method1], RestTokens = TokensAfterMethod1,
 	    !
 	    ;
+	    dbgprintf(parseMethods, "nonend TokensAfterMethod1=%w", 
+		      [TokensAfterMethod1]),
             parseMethods(TokensAfterMethod1,RestMethods,
                          TokensAfterMethods),
+	    dbgprintf(parseMethods, "RestMethods=%w\n... TokensAfterMethods=%w",
+		      [RestMethods,TokensAfterMethods]),
 	    Methods = [Method1|RestMethods],
 	    RestTokens = TokensAfterMethods,
 	    !
@@ -556,10 +572,10 @@ parseMethods(Tokens,Methods,RestTokens) :-
 
 %!% Method     ::= Classexp id ( FormalList ) Locals Seq
 parseMethod(Tokens,Method,RestTokens) :-
-    dbgprintf(parseMethod," start Tokens=%w", [Tokens]),
+    dbgprintf(parseMethod,"start Tokens=%w", [Tokens]),
         parseClassExp(Tokens,Cexp,TokensAfterCexp),
         atLine(Cexp,StartLine),
-	dbgprintf(parseMethod," Cexp=%w StartLine=%w\n ..parseMethod.. TokensAfterCexp=%w", 
+	dbgprintf(parseMethod,"Cexp=%w StartLine=%w\n ..parseMethod.. TokensAfterCexp=%w", 
 	       [Cexp,StartLine,TokensAfterCexp]),
         TokensAfterCexp = [tId{name:Id,file:FileName}|TokensAfterId],
         TokensAfterId = [tDelim{cont:lparen}|TokensAfterLparen],
@@ -577,10 +593,10 @@ parseMethod(Tokens,Method,RestTokens) :-
           dbgprintf(parseMethod,"Locals=%w TokensAfterLocals=%w",
 		 [Locals,TokensAfterLocals]),
           parseSeq(TokensAfterLocals,Seq,RestTokens),
-          dbgprintf(parseMethod, "Seq=%w RestTokens=%w",
+          dbgprintf(parseMethod,"Seq=%w RestTokens=%w",
 		 [Seq,RestTokens]),
           atEnd(Seq,EndLine),
-	  atFile(Seq,FileName),
+	  dbgprintf(parseMethod,"EndLine=%w",[EndLine]),
           Method = pMethod{id:Id,formals:Formals,cexp:Cexp,
                            locals:Locals,inst:Seq,
                            file:FileName,start:StartLine,end:EndLine},
@@ -664,7 +680,7 @@ parseSeq(Tokens,Seq,RestTokens)
 	  dbgprintf(parseSeq,"Insts=%w TokensAfterInst=%w",[Insts,TokensAfterInst]),
           TokensAfterInst = [tKeyw{word:end}|RestTokens],
           Seq = Insts,
-	  dbgprintf(parseSeq," Seq=%w RestTokens=%w",[Seq,RestTokens])
+	  dbgprintf(parseSeq,"Seq=%w RestTokens=%w",[Seq,RestTokens])
           ;
           ( !, lexAtLine(FirstToken,FirstLine),
             printf(warning_output,
@@ -775,7 +791,7 @@ parseInst(Tokens,Inst,RestTokens)
           !,
           printf(warning_output,
                  "BOPL failed to parse return instruction at"
-                 " file %s line %d", [FileName,StartLine]),
+                 " file %s line %d\n", [FileName,StartLine]),
           flush(warning_output),
           fail)
         .
@@ -798,7 +814,7 @@ parseInst(Tokens,Inst,RestTokens)
           ; !,
             printf(warning_output,
                    "BOPL failed to parse then sequence at"
-                   " file %s line %d", [FileName,ThenLine]),
+                   " file %s line %d\n", [FileName,ThenLine]),
             flush(warning_output),
             fail),
           TokensAfterThenSeq = [tKeyw{line:ElseLine,word:else}
@@ -811,7 +827,7 @@ parseInst(Tokens,Inst,RestTokens)
           ; !,
             printf(warning_output,
                    "BOPL failed to parse else sequence at"
-                   " file %s line %d", [FileName|ElseLine]),
+                   " file %s line %d\n", [FileName|ElseLine]),
             flush(warning_output),
             fail),
           atEnd(SeqElse,EndLine),
@@ -822,7 +838,7 @@ parseInst(Tokens,Inst,RestTokens)
         ; !,
           printf(warning_output, 
                  "BOPL failed to parse if instruction at file %s line"
-                 " %d",
+                 " %d\n",
                  [FileName,StartLine]),
           flush(warning_output),
           fail)
@@ -840,7 +856,7 @@ parseInst(Tokens,Inst,RestTokens)
             ; !, 
               printf(warning_output, 
                      "BOPL failed to parse while expression at file %s line"
-                     " %d",
+                     " %d\n",
                      [FileName,StartLine]),
               flush(warning_output),
               fail),
@@ -852,7 +868,7 @@ parseInst(Tokens,Inst,RestTokens)
             ; !,
               printf(warning_output, 
                      "BOPL failed to parse do sequence at file %s line"
-                     " %d",
+                     " %d\n",
                      [FileName,DoLine]),
               flush(warning_output),
               fail),
@@ -879,7 +895,7 @@ parseInst(Tokens,Inst,RestTokens)
             ; !, 
           printf(warning_output, 
                  "BOPL failed to parse writeln instruction at file %s line"
-                 " %d",
+                 " %d\n",
                  [FileName,StartLine]),
           flush(warning_output),
           fail        
@@ -976,7 +992,7 @@ parseRestExp(ParExp,[tKeyw{word:or,line:StartLine,file:FileName}
         .
 
 
-parseRestExp(_,ParentExp,Tokens,ParentExp,Tokens).
+parseRestExp(ParentExp,Tokens,ParentExp,Tokens).
 
 %!% Term       ::= Fact RestTerm
 %!% RestTerm   ::= * Fact | and Fact | <epsilon>
@@ -1011,7 +1027,7 @@ parseRestTerm(ParTerm,
                     file:FileName,line:StartLine}
         .
 
-parseRestTerm(_,ParTerm,RestTokens,ParTerm,RestTokens).
+parseRestTerm(ParTerm,RestTokens,ParTerm,RestTokens).
 
 % Fact       ::= Fact = Basic | Fact < Basic | Basic
 
@@ -1046,7 +1062,7 @@ parseRestFact(ParBasic,
                      file:FileName,line:StartLine)
         .
 
-parseRestFact(_,ParBasic,RestTokens,ParBasic,RestTokens).
+parseRestFact(ParBasic,RestTokens,ParBasic,RestTokens).
 
 %!% Basic      ::= not Exp | int | id | true | false | nil | self | super |
 %!%                new Classexp | ( Exp )
@@ -1114,7 +1130,7 @@ parseActualList(Tokens,ActList,RestTokens) :-
         parseActuals(Tokens,ActList,RestTokens),
         !.
 
-parseActualList(_,Tokens,[],Tokens).
+parseActualList(Tokens,[],Tokens).
 
 parseActuals(Tokens,Actuals,RestTokens) :-
         parseExp(Tokens,Exp,TokensAfterExp),
