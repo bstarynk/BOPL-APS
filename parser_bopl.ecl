@@ -85,6 +85,7 @@ debugName(parseTerm).
 debugName(parseRestTerm).
 debugName(parseFact).
 debugName(parseRestFact).
+debugName(parseBasic).
 
 
 enableDebug(X) :- debugName(X), assert(debugWanted(X)).
@@ -473,7 +474,9 @@ parseVars(Tokens,AllVars,RestTokens) :-
 %!% Var        ::= Classexp Ids ;
 parseVar(Tokens,VarList,RestTokens) :-
         parseClassExp(Tokens,Cexp,TokensAfterCexp),
+	dbgprintf(parseVar,"Cexp=%w TokensAfterCexp",[Cexp,TokensAfterCexp]),
         atLine(Cexp,Line),
+	atFile(Cexp,FileName),
         !,
         (
             parseIds(TokensAfterCexp,IdList,TokensAfterIds),
@@ -807,6 +810,7 @@ parseInst(Tokens,Inst,RestTokens)
           TokensAfterCond = [tKeyw{line:ThenLine,word:then}
                             |TokensAfterThen],
           (
+	      dbgprintf(parseInst,"parse if TokensAfterThen=%w",[TokensAfterThen]),
               parseSeq(TokensAfterThen,SeqThen,
                        TokensAfterThenSeq),
 	      !,
@@ -962,7 +966,7 @@ parseRestExp(ParExp,[tDelim{cont:plus,line:StartLine,file:FileName}
                              |TokensAfterPlus],
              Exp,RestTokens) :-
         !,
-	dbgprintf(parseRestExp," plus ParExp=%w TokensAfterPlus=%w",
+	dbgprintf(parseRestExp,"plus ParExp=%w TokensAfterPlus=%w",
 	       [ParExp, TokensAfterPlus]),
         parseExp(TokensAfterPlus,Term,TokensAfterTerm),
         Exp = pPlus(left:ParExp,right:Term,
@@ -986,6 +990,8 @@ parseRestExp(ParExp,[tKeyw{word:or,line:StartLine,file:FileName}
                              |TokensAfterOr],
              Exp,RestTokens) :-
         !,
+	dbgprintf(parseRestExp,"or ParExp=%w,TokensAfterOr=%w",
+		  [ParExp,TokensAfterOr]),
         parseExp(TokensAfterOr,Term,RestTokens),
         Exp = pOr(left:ParExp,right:Term,
                   file:FileName,line:StartLine)
@@ -1035,9 +1041,13 @@ parseRestTerm(ParTerm,RestTokens,ParTerm,RestTokens).
 %!%     RestFact := = Fact | < Fact | <epsilon>
 
 parseFact(Tokens,Fact,RestTokens) :-
-	dbgprintf(parseFact,"parseFact Tokens=%w\n", [Tokens]),
+	dbgprintf(parseFact,"Tokens=%w\n", [Tokens]),
         parseBasic(Tokens,Basic,TokensAfterBasic),
-        parseRestFact(Basic,TokensAfterBasic,Fact,RestTokens)
+	dbgprintf(parseFact,"Basic=%w TokensAfterBasic=%w before restfact",
+		  [Basic,TokensAfterBasic]),
+        parseRestFact(Basic,TokensAfterBasic,Fact,RestTokens),
+	dbgprintf(parseFact,"after restfact Fact=%w RestTokens=%w",
+		  [Fact,RestTokens])
 .
 
 parseRestFact(ParBasic,
@@ -1046,20 +1056,28 @@ parseRestFact(ParBasic,
                Fact,RestTokens)
         :-
         !,
+	dbgprintf(parseRestFact,"less ParBasic=%w TokensAfterLess=%w",
+		  [ParBasic,TokensAfterLess]),
         parseFact(TokensAfterLess,FactRight,RestTokens),
+	dbgprintf(parseRestFact,"less FactRight=%w",[FactRight]),
         Fact = pLess(left:ParBasic,right:FactRight,
-                     file:FileName,line:StartLine)
+                     file:FileName,line:StartLine),
+	dbgprintf(parseRestFact,"less Fact=%w",[Fact])
         .
 
 parseRestFact(ParBasic,
-              [tDelim{cont:equal,line:StartLine:file:FileName}
+              [tDelim{cont:equal,line:StartLine,file:FileName}
               |TokensAfterEqual],
                Fact,RestTokens)
         :-
         !,
+	dbgprintf(parseRestFact,"equal ParBasic=%w StartLine=%d TokensAfterEqual=%w",
+		  [ParBasic,StartLine,TokensAfterEqual]),
         parseFact(TokensAfterEqual,FactRight,RestTokens),
+	dbgprintf(parseRestFact,"equal FactRight=%w",[FactRight]),
         Fact = pEqual(left:ParBasic,right:FactRight,
-                     file:FileName,line:StartLine)
+                     file:FileName,line:StartLine),
+	dbgprintf(parseRestFact,"equal Fact %w",[Fact])
         .
 
 parseRestFact(ParBasic,RestTokens,ParBasic,RestTokens).
@@ -1069,56 +1087,67 @@ parseRestFact(ParBasic,RestTokens,ParBasic,RestTokens).
 
 parseBasic(Tokens,Basic,RestTokens)
         :- Tokens = [tKeyw{word:not,line:StartLine,file:FileName}|TokensAfterNot],
+	dbgprintf(parseBasic,"not TokensAfterNot=%w",[TokensAfterNot]),
         parseExp(TokensAfterNot,ExpNeg,RestTokens),
-        Basic = pNot{exp:ExpNeg, file:FileName, line:StartLine}
+        Basic = pNot{exp:ExpNeg, file:FileName, line:StartLine},
+	dbgprintf(parseBasic,"not Basic %w",[Basic])
            .
 
 parseBasic(Tokens,Basic,RestTokens)
         :- Tokens = [tKeyw{word:new,line:StartLine,file:FileName}|TokensAfterNew],
         parseClassExp(TokensAfterNew,Cexp,RestTokens),
-        Basic = pNew{cexp:Cexp, file:FileName, line:StartLine}
+        Basic = pNew{cexp:Cexp, file:FileName, line:StartLine},
+	dbgprintf(parseBasic,"new Basic %w",[Basic])
            .
 
 parseBasic(Tokens,Basic,RestTokens)
         :- 
         Tokens = [tNum{line:Line,file:FileName,num:N}|RestTokens],
-        Basic = pInt{num:N, file:FileName, line:Line}
+        Basic = pInt{num:N, file:FileName, line:Line},
+	dbgprintf(parseBasic,"int Basic %w",[Basic])
         .
            
 parseBasic(Tokens,Basic,RestTokens)
         :- 
         Tokens = [tId{line:Line,file:FileName,name:N}|RestTokens],
-        Basic = pId{id:N, file:FileName, line:Line}
+        Basic = pId{id:N, file:FileName, line:Line},
+	dbgprintf(parseBasic,"id Basic %w",[Basic])
         .
 parseBasic(Tokens,Basic,RestTokens)
         :- 
         Tokens = [tKeyw{line:Line,word:true,file:FileName}|RestTokens],
-        Basic = pBoolean{bool:true, file:FileName, line:Line}
+        Basic = pBoolean{bool:true, file:FileName, line:Line},
+	dbgprintf(parseBasic,"true Basic %w",[Basic])
         .
 
 parseBasic(Tokens,Basic,RestTokens)
         :- 
         Tokens = [tKeyw{line:Line,word:nil,file:FileName}|RestTokens],
-        Basic = pNil{file:FileName, line:Line}
+        Basic = pNil{file:FileName, line:Line},
+	dbgprintf(parseBasic,"nil Basic %w",[Basic])
         .
 
 parseBasic(Tokens,Basic,RestTokens)
         :- 
         Tokens = [tKeyw{line:Line,file:FileName,word:self}|RestTokens],
-        Basic = pSelf{file:FileName, line:Line}
+        Basic = pSelf{file:FileName, line:Line},
+	dbgprintf(parseBasic,"self Basic %w",[Basic])
         .
 
 parseBasic(Tokens,Basic,RestTokens)
         :- 
         Tokens = [tKeyw{line:Line,word:super,file:FileName}|RestTokens],
-        Basic = pSuper{file:FileName, line:Line}
+        Basic = pSuper{file:FileName, line:Line},
+	dbgprintf(parseBasic,"super Basic %w",[Basic])
         .
 
 
 parseBasic(Tokens,Basic,RestTokens)
         :- 
         Tokens = [tDelim{cont:lparen}|TokensAfterLparen],
+	dbgprintf(parseBasic,"basicparen TokensAfterLparen=%w",[TokensAfterLparen]),
 	parseExp(TokensAfterLparen,Exp,TokensAfterExp),
+	dbgprintf(parseBasic,"basicparen Exo=%w, TokensAfterExp=%w",[Exp,TokensAfterExp]),
 	TokensAfterExp = [tDelim{cont:rparen}|RestTokens],
 	Basic = Exp
 	.
