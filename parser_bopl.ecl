@@ -30,7 +30,9 @@
 
 
 :- dynamic debugWanted/1.
+:- dynamic atLine/2,atFile/2,atStart/2,atEnd/2. %% because type_check_bopl.ecl extends it
 :- export parseFile/2, parse/2, dbgprintf/3, debugName/1, debugWanted/1, enableDebug/1, disableDebug/1.
+:- export atLine/2,atFile/2,atStart/2,atEnd/2.
 
 
 %================================================================
@@ -154,7 +156,7 @@ disableDebug(all) :-
 %%$% inst    ::= seq(inst, inst) | assign(id, exp) | writeField(exp, id, exp) |
 %%$%             if(exp, inst, inst) | while(exp, inst) | return(exp) |
 %%$%             writeln(Exp)
-:- export struct(pSeq(lefti,righti,file,start,end)).
+%% we don't have pSeq, we represent sequences as lists of instructions
 :- export struct(pAssign(id,exp,file,line)).
 :- export struct(pWriteField(obj,id,val,file,line)).
 :- export struct(pIf(exp,seqthen,seqelse,file,start,end)).
@@ -202,7 +204,6 @@ atFile(pClass{file:FileName},FileName).
 atFile(pCexp{file:FileName},FileName).
 atFile(pVar{file:FileName},FileName).
 atFile(pMethod{file:FileName},FileName).
-atFile(pSeq{file:FileName},FileName).
 atFile(pWriteField{file:FileName},FileName).
 atFile(pIf{file:FileName},FileName).
 atFile(pWhile{file:FileName},FileName).
@@ -233,7 +234,6 @@ atFile([Head|_],FileName) :- atFile(Head,FileName).
 atStart(pProgram{start:StartLine},StartLine).
 atStart(pClass{start:StartLine},StartLine).
 atStart(pMethod{start:StartLine},StartLine).
-atStart(pSeq{start:StartLine},StartLine).
 atStart(pIf{start:StartLine},StartLine).
 atStart(pWhile{start:StartLine},StartLine).
 atStart([Head|_],StartLine) :- atStart(Head,StartLine).
@@ -243,7 +243,6 @@ atStart(X,StartLine) :- atLine(X,StartLine).
 atEnd(pProgram{end:EndLine},EndLine).
 atEnd(pClass{end:EndLine},EndLine).
 atEnd(pMethod{end:EndLine},EndLine).
-atEnd(pSeq{end:EndLine},EndLine).
 atEnd(pIf{end:EndLine},EndLine).
 atEnd(pWhile{end:EndLine},EndLine).
 atEnd([E],EndLine) :- atEnd(E,EndLine).
